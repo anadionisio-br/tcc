@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import '../models/aluno_model.dart';
 
 class FrequenciaController extends ChangeNotifier {
+  // Configuração base do Dio
   final Dio _dio = Dio(BaseOptions(baseUrl: 'http://10.0.2.2:8000/api')); 
 
   List<AlunoModel> alunos = [];
@@ -36,13 +37,13 @@ class FrequenciaController extends ChangeNotifier {
     } catch (e) {
       debugPrint("Erro ao conectar ao Laravel: $e");
       
-      // MOCK/TESTE LOCAL: Se a API Laravel estiver desligada, cria alunos simulados para você testar os botões clicáveis imediatamente
+      // MOCK/TESTE LOCAL: Se a API Laravel estiver desligada, cria alunos simulados
       if (alunos.isEmpty) {
         alunos = [
-          AlunoModel(idAluno: 1001, nome: "Ana Beatriz Nogueira", status: "Presente"),
+          AlunoModel(idAluno: 1001, nome: "Ana Beatriz Nogueira", status: "Falta"),
           AlunoModel(idAluno: 1002, nome: "Carlos Eduardo Lima", status: "Falta"),
-          AlunoModel(idAluno: 1003, nome: "Gabriel Henrique Santos", status: "Presente"),
-          AlunoModel(idAluno: 1004, nome: "Julia Maria Souza", status: "Presente"),
+          AlunoModel(idAluno: 1003, nome: "Gabriel Henrique Santos", status: "Falta"),
+          AlunoModel(idAluno: 1004, nome: "Julia Maria Souza", status: "Falta"),
         ];
       }
     } finally {
@@ -51,7 +52,35 @@ class FrequenciaController extends ChangeNotifier {
     }
   }
 
-  // Ação de clique: muda o status e reconstrói o visual na hora!
+  /// 🚀 NOVO MÉTODO: Registra a presença capturada pelo Totem Facial
+  Future<bool> registrarPresencaFacial(int idAluno) async {
+    // 1. Atualiza localmente no Flutter imediatamente para dar resposta rápida na tela do Totem
+    final idx = alunos.indexWhere((a) => a.idAluno == idAluno);
+    if (idx != -1) {
+      alunos[idx].status = 'Presente';
+      notifyListeners();
+    }
+
+    // 2. Envia a alteração em segundo plano para o Laravel via POST /api/frequencia
+    try {
+      final response = await _dio.post('/frequencia', data: {
+        'id_aluno': idAluno,
+        'id_turma': turmaSelecionada,
+        'data': dataFormatada,
+        'status': 'Presente',
+      });
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint("Presença do aluno $idAluno salva no Laravel com sucesso!");
+        return true;
+      }
+    } catch (e) {
+      debugPrint("Erro ao salvar presença no Laravel: $e");
+    }
+    return false;
+  }
+
+  // Ação de clique manual (caso o professor queira alterar na mão)
   void alternarStatus(int idAluno) {
     final idx = alunos.indexWhere((a) => a.idAluno == idAluno);
     if (idx != -1) {
@@ -60,7 +89,7 @@ class FrequenciaController extends ChangeNotifier {
       } else {
         alunos[idx].status = 'Presente';
       }
-      notifyListeners(); // Alerta a tela para mudar a cor do botão
+      notifyListeners();
     }
   }
 

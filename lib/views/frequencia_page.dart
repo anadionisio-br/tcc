@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../controllers/frequencia_controller.dart';
 import 'totem_facial_page.dart';
+import 'cadastro_rosto_page.dart'; // Importação da tela de cadastro de rosto
 
 class FrequenciaPage extends StatefulWidget {
   const FrequenciaPage({Key? key}) : super(key: key);
@@ -38,7 +39,46 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
     return Scaffold(
       backgroundColor: SifeTheme.bgLight,
       
-      // --- BOTÃO FLUTUANTE PARA O MODO TOTEM (BATEDOR DE PONTO FACIAL) ---
+      // --- BARRA SUPERIOR PERSONALIZADA COM BOTÃO DE CADASTRO ---
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text(
+              'Registro de Frequência',
+              style: TextStyle(color: SifeTheme.textDark, fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            Text(
+              '8º Ano B • Matutino • Sala 04',
+              style: TextStyle(color: Colors.grey, fontSize: 11),
+            ),
+          ],
+        ),
+        actions: [
+          // BOTÃO CADASTRAR ROSTO NA BARRA SUPERIOR
+          TextButton.icon(
+            onPressed: () async {
+              final ok = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CadastroRostoPage()),
+              );
+              if (ok == true) {
+                controller.buscarChamada();
+              }
+            },
+            icon: const FaIcon(FontAwesomeIcons.userPlus, size: 14, color: SifeTheme.primaryRed),
+            label: const Text(
+              'Cadastrar Rosto',
+              style: TextStyle(color: SifeTheme.primaryRed, fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+
+      // --- BOTÃO FLUTUANTE PARA O MODO TOTEM ---
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: SifeTheme.primaryRed,
         icon: const FaIcon(FontAwesomeIcons.expand, color: Colors.white, size: 16),
@@ -124,7 +164,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
             ),
             const SizedBox(height: 16),
 
-            // 2. INDICADORES E ESTATÍSTICAS DO TOPO (DINÂMICOS)
+            // 2. INDICADORES E ESTATÍSTICAS DO TOPO
             Row(
               children: [
                 _buildStatCard("Total Alunos", controller.totalAlunos.toString(), SifeTheme.textDark),
