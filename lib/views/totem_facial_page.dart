@@ -20,8 +20,7 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
   CameraController? _cameraController;
   bool _cameraInicializada = false;
   bool _erroCamera = false;
-  
-  // Instância do Detector de Rosto do ML Kit
+
   final FaceDetector _faceDetector = FaceDetector(
     options: FaceDetectorOptions(
       performanceMode: FaceDetectorMode.fast,
@@ -34,19 +33,27 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
   bool _procurandoRosto = true;
   bool _sucesso = false;
   bool _jaRegistradoHoje = false;
-  
+
   String _nomeAlunoIdentificado = "";
   String _matriculaAluno = "";
 
-  // Lista temporária em memória para evitar leituras seguidas da mesma pessoa
   final List<int> _alunosRegistradosRecentemente = [];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Captura o id_turma passado via Arguments pela TurmasPage
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final int? idTurma = args?['id_turma'];
+
       final controller = context.read<FrequenciaController>();
-      await controller.buscarChamada();
+      if (idTurma != null) {
+        await controller.buscarChamadaPorTurma(idTurma);
+      } else {
+        await controller.buscarChamada();
+      }
+
       await _inicializarCameraComMLKit();
     });
   }
@@ -68,7 +75,7 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
         cameraFrontal,
         ResolutionPreset.medium,
         enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.nv21, // Formato ideal para ML Kit no Android
+        imageFormatGroup: ImageFormatGroup.nv21,
       );
 
       await _cameraController!.initialize();
@@ -79,7 +86,6 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
           _erroCamera = false;
         });
 
-        // Inicia o Stream de quadros da câmera para o ML Kit
         _cameraController!.startImageStream(_processarFrameCamera);
       }
     } catch (e) {
@@ -93,7 +99,6 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
     }
   }
 
-  // Processa cada Frame capturado pela câmera em tempo real
   Future<void> _processarFrameCamera(CameraImage image) async {
     if (_isProcessingFrame || !_procurandoRosto) return;
 
@@ -108,11 +113,9 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
 
       final List<Face> faces = await _faceDetector.processImage(inputImage);
 
-      // Se encontrou ao menos um rosto no quadro
       if (faces.isNotEmpty) {
         final Face rostroDetectado = faces.first;
 
-        // Garante que o rosto está bem posicionado (com bounding box)
         if (rostroDetectado.boundingBox.width > 80) {
           await _identificarERegistrarAluno();
         }
@@ -124,11 +127,9 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
     }
   }
 
-  // Lógica de Identificação e Validação do Aluno
   Future<void> _identificarERegistrarAluno() async {
     if (!_procurandoRosto) return;
 
-    // Pausa temporariamente a detecção para evitar disparos múltiplos
     setState(() {
       _procurandoRosto = false;
     });
@@ -140,7 +141,6 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
       return;
     }
 
-    // Busca o próximo aluno pendente da chamada
     AlunoModel? alunoIdentificado;
     try {
       alunoIdentificado = controller.alunos.firstWhere(
@@ -173,7 +173,6 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
       });
     }
 
-    // Registra a presença no Laravel
     if (!jaEstavaPresente) {
       try {
         await controller.registrarPresencaFacial(alunoIdentificado.idAluno);
@@ -197,7 +196,6 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
     });
   }
 
-  // Utilitário para converter o CameraImage da câmera para o InputImage do ML Kit
   InputImage? _converterCameraImageParaInputImage(CameraImage image) {
     if (_cameraController == null) return null;
 
@@ -254,7 +252,7 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'TERMINAL BIOMÉTRICO FACIAL', 
+          'TERMINAL BIOMÉTRICO FACIAL',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.2),
         ),
         centerTitle: true,
@@ -354,17 +352,17 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
                           const FaIcon(FontAwesomeIcons.solidCircleCheck, color: Colors.white, size: 50),
                           const SizedBox(height: 16),
                           const Text(
-                            'ENTRADA CONFIRMADA', 
+                            'ENTRADA CONFIRMADA',
                             style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            _nomeAlunoIdentificado, 
-                            textAlign: TextAlign.center, 
+                            _nomeAlunoIdentificado,
+                            textAlign: TextAlign.center,
                             style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           Text(
-                            _matriculaAluno, 
+                            _matriculaAluno,
                             style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13),
                           ),
                         ],
@@ -377,17 +375,17 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
                               const Icon(Icons.info_outline, color: Colors.white, size: 50),
                               const SizedBox(height: 16),
                               const Text(
-                                'PRESENÇA JÁ REGISTRADA', 
+                                'PRESENÇA JÁ REGISTRADA',
                                 style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                _nomeAlunoIdentificado, 
-                                textAlign: TextAlign.center, 
+                                _nomeAlunoIdentificado,
+                                textAlign: TextAlign.center,
                                 style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                               ),
                               Text(
-                                _matriculaAluno, 
+                                _matriculaAluno,
                                 style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13),
                               ),
                             ],

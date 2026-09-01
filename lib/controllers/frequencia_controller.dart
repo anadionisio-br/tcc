@@ -5,7 +5,7 @@ import '../models/aluno_model.dart';
 
 class FrequenciaController extends ChangeNotifier {
   // Configuração base do Dio
-  final Dio _dio = Dio(BaseOptions(baseUrl: 'http://10.0.2.2:8000/api')); 
+  final Dio _dio = Dio(BaseOptions(baseUrl: 'http://10.0.2.2:8000/api'));
 
   List<AlunoModel> alunos = [];
   bool carregando = false;
@@ -20,6 +20,7 @@ class FrequenciaController extends ChangeNotifier {
   int get totalAusentes => alunos.where((a) => a.status == 'Falta' || a.status == 'Ausente').length;
   double get aproveitamento => totalAlunos > 0 ? (presentes / totalAlunos) * 100 : 100.0;
 
+  // Busca a chamada usando a turma selecionada no estado atual
   Future<void> buscarChamada() async {
     carregando = true;
     notifyListeners();
@@ -36,7 +37,7 @@ class FrequenciaController extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint("Erro ao conectar ao Laravel: $e");
-      
+
       // MOCK/TESTE LOCAL: Se a API Laravel estiver desligada, cria alunos simulados
       if (alunos.isEmpty) {
         alunos = [
@@ -52,7 +53,13 @@ class FrequenciaController extends ChangeNotifier {
     }
   }
 
-  /// 🚀 NOVO MÉTODO: Registra a presença capturada pelo Totem Facial
+  // 🚀 Suporte à navegação por argumento (TotemFacialPage)
+  Future<void> buscarChamadaPorTurma(int idTurma) async {
+    turmaSelecionada = idTurma;
+    await buscarChamada();
+  }
+
+  // Registra a presença capturada pelo Totem Facial
   Future<bool> registrarPresencaFacial(int idAluno) async {
     // 1. Atualiza localmente no Flutter imediatamente para dar resposta rápida na tela do Totem
     final idx = alunos.indexWhere((a) => a.idAluno == idAluno);

@@ -2,30 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../config/theme.dart';
 import 'frequencia_page.dart';
+import 'totem_facial_page.dart';
+import 'cadastro_rosto_page.dart';
 import 'login_page.dart';
-
-// Nome corrigido: sem acento para o compilador aceitar
-class ModuloProfessorPage extends StatelessWidget {
-  final String mensagem;
-  const ModuloProfessorPage({Key? key, required this.mensagem}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          FaIcon(FontAwesomeIcons.screwdriverWrench, size: 48, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(
-            mensagem,
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class NavigationMenu extends StatefulWidget {
   const NavigationMenu({Key? key}) : super(key: key);
@@ -35,25 +14,19 @@ class NavigationMenu extends StatefulWidget {
 }
 
 class _NavigationMenuState extends State<NavigationMenu> {
-  int _indiceSelecionado = 3; // Começa na Frequência (Chamada)
+  int _indiceSelecionado = 0;
 
-  // LISTA CORRIGIDA: Sem const na frente da FrequenciaPage e sem acentos nas classes
+  // Lista atualizada com as páginas do sistema
   final List<Widget> _telas = [
-    const ModuloProfessorPage(mensagem: 'Painel do Dashboard em desenvolvimento'),
-    const ModuloProfessorPage(mensagem: 'Lista de Turmas do Professor em desenvolvimento'),
-    const ModuloProfessorPage(mensagem: 'Área de Lançamento de Notas em desenvolvimento'),
-    const FrequenciaPage(), 
-    const ModuloProfessorPage(mensagem: 'Repositório de Materiais em desenvolvimento'),
-    const ModuloProfessorPage(mensagem: 'Central de Comunicados em desenvolvimento'),
+    const FrequenciaPage(),
+    const TotemFacialPage(),
+    const CadastroRostoPage(),
   ];
 
   final List<String> _titulos = [
-    'Dashboard',
-    'Minhas Turmas',
-    'Lançar Notas',
     'Registro de Frequência',
-    'Materiais',
-    'Comunicados'
+    'Totem Facial',
+    'Cadastrar Rosto',
   ];
 
   @override
@@ -65,7 +38,11 @@ class _NavigationMenuState extends State<NavigationMenu> {
         elevation: 0,
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const FaIcon(FontAwesomeIcons.bars, color: SifeTheme.textDark, size: 20),
+            icon: const FaIcon(
+              FontAwesomeIcons.bars,
+              color: SifeTheme.textDark,
+              size: 20,
+            ),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
@@ -74,34 +51,19 @@ class _NavigationMenuState extends State<NavigationMenu> {
           children: [
             Text(
               _titulos[_indiceSelecionado],
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: SifeTheme.textDark),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: SifeTheme.textDark,
+              ),
             ),
-            if (_indiceSelecionado == 3)
-              Text('8º Ano B • Matutino • Sala 04', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+            if (_indiceSelecionado == 0)
+              Text(
+                '8º Ano B • Matutino • Sala 04',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              ),
           ],
         ),
-        actions: [
-          if (_indiceSelecionado == 3)
-            Padding(
-              padding: const EdgeInsets.only(right: 12.0),
-              child: Center(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: SifeTheme.primaryRed,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    elevation: 0,
-                  ),
-                  icon: const FaIcon(FontAwesomeIcons.cloudArrowUp, size: 14, color: Colors.white),
-                  label: const Text('Salvar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Frequência salva com sucesso no SIFE!'), backgroundColor: Colors.green),
-                    );
-                  },
-                ),
-              ),
-            )
-        ],
       ),
       drawer: Drawer(
         backgroundColor: Colors.white,
@@ -109,6 +71,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // CABEÇALHO DO MENU
               Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Row(
@@ -119,37 +82,65 @@ class _NavigationMenuState extends State<NavigationMenu> {
                         color: SifeTheme.primaryRed,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const FaIcon(FontAwesomeIcons.chalkboardUser, size: 22, color: Colors.white),
+                      child: const FaIcon(
+                        FontAwesomeIcons.chalkboardUser,
+                        size: 22,
+                        color: Colors.white,
+                      ),
                     ),
                     const SizedBox(width: 14),
-                    const Text('SIFE', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: SifeTheme.textDark)),
+                    const Text(
+                      'SIFE',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: SifeTheme.textDark,
+                      ),
+                    ),
                   ],
                 ),
               ),
+
+              // ITENS DE NAVEGAÇÃO
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
                     const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 12),
-                      child: Text('GESTÃO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blueGrey, letterSpacing: 1.2)),
+                      padding: EdgeInsets.symmetric(
+                        vertical: 8.0,
+                        horizontal: 12,
+                      ),
+                      child: Text(
+                        'GESTÃO',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blueGrey,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
                     ),
-                    _buildMenuItem(0, FontAwesomeIcons.chartSimple, 'Dashboard'),
-                    _buildMenuItem(1, FontAwesomeIcons.users, 'Minhas Turmas'),
-                    _buildMenuItem(2, FontAwesomeIcons.penToSquare, 'Lançar Notas'),
-                    _buildMenuItem(3, FontAwesomeIcons.calendarCheck, 'Frequência'),
-
-                    const SizedBox(height: 16),
-
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 12),
-                      child: Text('CONTEÚDO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blueGrey, letterSpacing: 1.2)),
+                    _buildMenuItem(
+                      0,
+                      FontAwesomeIcons.calendarCheck,
+                      'Frequência',
                     ),
-                    _buildMenuItem(4, FontAwesomeIcons.fileArrowUp, 'Materiais'),
-                    _buildMenuItem(5, FontAwesomeIcons.bullhorn, 'Comunicados'),
+                    _buildMenuItem(
+                      1,
+                      FontAwesomeIcons.expand,
+                      'Totem Facial',
+                    ),
+                    _buildMenuItem(
+                      2,
+                      FontAwesomeIcons.idCard,
+                      'Cadastrar Rosto',
+                    ),
                   ],
                 ),
               ),
+
+              // RODAPÉ DO USUÁRIO E SAIR
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -165,15 +156,35 @@ class _NavigationMenuState extends State<NavigationMenu> {
                           const CircleAvatar(
                             backgroundColor: SifeTheme.primaryRed,
                             radius: 18,
-                            child: Text('PA', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                            child: Text(
+                              'PA',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: const [
-                                Text('Professora Ana Dionisio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: SifeTheme.textDark)),
-                                Text('professor@gmail.com', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                Text(
+                                  'Professora',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: SifeTheme.textDark,
+                                  ),
+                                ),
+                                Text(
+                                  'professor@gmail.com',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -185,14 +196,29 @@ class _NavigationMenuState extends State<NavigationMenu> {
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size.fromHeight(48),
                         side: const BorderSide(color: SifeTheme.primaryRed),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      icon: const FaIcon(FontAwesomeIcons.rightFromBracket, size: 14, color: SifeTheme.primaryRed),
-                      label: const Text('Sair da Conta', style: TextStyle(color: SifeTheme.primaryRed, fontWeight: FontWeight.bold, fontSize: 14)),
+                      icon: const FaIcon(
+                        FontAwesomeIcons.rightFromBracket,
+                        size: 14,
+                        color: SifeTheme.primaryRed,
+                      ),
+                      label: const Text(
+                        'Sair da Conta',
+                        style: TextStyle(
+                          color: SifeTheme.primaryRed,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
                       onPressed: () {
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (context) => const LoginPage()),
+                          MaterialPageRoute(
+                            builder: (context) => const LoginPage(),
+                          ),
                         );
                       },
                     ),
@@ -217,7 +243,11 @@ class _NavigationMenuState extends State<NavigationMenu> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(
-        leading: FaIcon(icon, size: 18, color: isSelected ? SifeTheme.primaryRed : Colors.blueGrey.shade400),
+        leading: FaIcon(
+          icon,
+          size: 18,
+          color: isSelected ? SifeTheme.primaryRed : Colors.blueGrey.shade400,
+        ),
         title: Text(
           label,
           style: TextStyle(
