@@ -1,0 +1,44 @@
+import 'dart:typed_data';
+
+import 'package:face_plugin/face_plugin.dart';
+
+class FaceRecognitionService {
+  Future<List<double>?> extrairRosto(
+    Uint8List imageBytes,
+  ) async {
+    final faces = await FacePlugin.detectFaces(imageBytes);
+
+    if (faces.isEmpty) {
+      return null;
+    }
+
+    if (faces.length > 1) {
+      throw Exception(
+        'Mais de um rosto foi detectado.',
+      );
+    }
+
+    final face = faces.first;
+
+    if (face.landmarkCount < 3) {
+      return null;
+    }
+
+    if (face.headEulerAngleY.abs() > 30) {
+      return null;
+    }
+
+    if (face.headEulerAngleZ.abs() > 25) {
+      return null;
+    }
+
+    final features =
+        await FacePlugin.extractFeatures(imageBytes);
+
+    if (features.isEmpty) {
+      return null;
+    }
+
+    return features.first;
+  }
+}
