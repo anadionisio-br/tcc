@@ -1,10 +1,10 @@
+
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/theme.dart';
 import '../services/api_service.dart';
-
 import 'frequencia_page.dart';
 import 'totem_facial_page.dart';
 import 'cadastro_rosto_page.dart';
@@ -20,14 +20,31 @@ class NavigationMenu extends StatefulWidget {
 class _NavigationMenuState extends State<NavigationMenu> {
   int _indiceSelecionado = 0;
 
+  final List<Widget> _telas = const [
+    FrequenciaPage(),
+    TotemFacialPage(),
+    CadastroRostoPage(),
+  ];
+
+  final List<String> _titulos = const [
+    'Frequência',
+    'Totem Facial',
+    'Cadastrar Rosto',
+  ];
+
+  final List<String> _subtitulos = const [
+    'Gerencie a presença dos alunos',
+    'Controle o reconhecimento facial',
+    'Cadastre o rosto dos alunos',
+  ];
+
   // ============================================================
-  // BUSCAR DADOS DO PROFESSOR (LOCAL)
+  // DADOS DO PROFESSOR
   // ============================================================
 
   Future<Map<String, String>> _buscarDadosProfessor() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Tenta buscar por todas as variações de chaves possíveis do backend
     final nome = prefs.getString('usuario_nome') ??
         prefs.getString('professor_nome') ??
         prefs.getString('name') ??
@@ -43,43 +60,32 @@ class _NavigationMenuState extends State<NavigationMenu> {
       'nome': nome.isNotEmpty ? nome : 'Professor(a)',
       'email': email.isNotEmpty ? email : 'Sem e-mail cadastrado',
     };
-  
   }
 
-  // Gera as inicial do nome para colocar no CircleAvatar
   String _gerarInicial(String nome) {
-    if (nome.trim().isEmpty) return 'P';
-    final partes = nome.trim().split(' ');
-    if (partes.length >= 2) {
-      return '${partes[0][0]}${partes[1][0]}'.toUpperCase();
+    final texto = nome.trim();
+
+    if (texto.isEmpty) {
+      return 'P';
     }
-    return partes[0][0].toUpperCase();
+
+    final partes = texto.split(RegExp(r'\s+'));
+
+    if (partes.length >= 2) {
+      return '${partes.first[0]}${partes[1][0]}'.toUpperCase();
+    }
+
+    return partes.first[0].toUpperCase();
   }
 
   // ============================================================
-  // PÁGINAS
+  // BUILD
   // ============================================================
-
-  final List<Widget> _telas = [
-    const FrequenciaPage(),
-    const TotemFacialPage(),
-    const CadastroRostoPage(),
-  ];
-
-  // ============================================================
-  // TÍTULOS DO MENU
-  // ============================================================
-
-  final List<String> _titulos = [
-    'Frequência',
-    'Totem Facial',
-    'Cadastrar Rosto',
-  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: SifeTheme.bgLight,
+      backgroundColor: const Color(0xFFF7F8FA),
 
       // ========================================================
       // APP BAR
@@ -87,151 +93,291 @@ class _NavigationMenuState extends State<NavigationMenu> {
 
       appBar: AppBar(
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
-        surfaceTintColor: Colors.white,
+        scrolledUnderElevation: 0,
+        toolbarHeight: 72,
 
         leading: Builder(
           builder: (context) {
-            return IconButton(
-              tooltip: 'Abrir menu',
-              icon: const FaIcon(
-                FontAwesomeIcons.bars,
-                color: SifeTheme.textDark,
-                size: 20,
+            return Padding(
+              padding: const EdgeInsets.only(left: 14),
+              child: IconButton(
+                tooltip: 'Abrir menu',
+                splashRadius: 24,
+                icon: const FaIcon(
+                  FontAwesomeIcons.barsStaggered,
+                  color: SifeTheme.textDark,
+                  size: 19,
+                ),
+                onPressed: () {
+                  Scaffold.of(context).openDrawer();
+                },
               ),
-              onPressed: () {
-                Scaffold.of(context).openDrawer();
-              },
             );
           },
         ),
 
-        title: Text(
-          _titulos[_indiceSelecionado],
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-            color: SifeTheme.textDark,
-          ),
+        titleSpacing: 4,
+
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              _titulos[_indiceSelecionado],
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: SifeTheme.textDark,
+                letterSpacing: -0.3,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              _subtitulos[_indiceSelecionado],
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w400,
+                color: Colors.blueGrey.shade400,
+              ),
+            ),
+          ],
         ),
+
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 18),
+            child: FutureBuilder<Map<String, String>>(
+              future: _buscarDadosProfessor(),
+              builder: (context, snapshot) {
+                final nome =
+                    snapshot.data?['nome'] ?? 'Professor(a)';
+
+                return Center(
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: SifeTheme.primaryRedSoft,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        _gerarInicial(nome),
+                        style: const TextStyle(
+                          color: SifeTheme.primaryRed,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
 
       // ========================================================
-      // MENU LATERAL
+      // DRAWER
       // ========================================================
 
       drawer: Drawer(
+        width: 300,
+        elevation: 10,
         backgroundColor: Colors.white,
 
         child: SafeArea(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-
             children: [
               // ==================================================
-              // CABEÇALHO DO MENU
+              // LOGO / CABEÇALHO
               // ==================================================
 
               Padding(
-                padding: const EdgeInsets.all(24.0),
-
+                padding: const EdgeInsets.fromLTRB(
+                  22,
+                  22,
+                  22,
+                  20,
+                ),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(10),
-
+                      width: 46,
+                      height: 46,
                       decoration: BoxDecoration(
                         color: SifeTheme.primaryRed,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                SifeTheme.primaryRed.withOpacity(0.18),
+                            blurRadius: 12,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
                       ),
-
-                      child: const FaIcon(
-                        FontAwesomeIcons.chalkboardUser,
-                        size: 22,
-                        color: Colors.white,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      width: 14,
-                    ),
-
-                    const Text(
-                      'SIFE',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: SifeTheme.textDark,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // ==================================================
-              // ITENS DE NAVEGAÇÃO
-              // ==================================================
-
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                  ),
-
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.symmetric(
-                        vertical: 8.0,
-                        horizontal: 12,
-                      ),
-
-                      child: Text(
-                        'GESTÃO',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blueGrey,
-                          letterSpacing: 1.2,
+                      child: const Center(
+                        child: FaIcon(
+                          FontAwesomeIcons.userGraduate,
+                          color: Colors.white,
+                          size: 20,
                         ),
                       ),
                     ),
 
-                    // FREQUÊNCIA
-                    _buildMenuItem(
-                      0,
-                      FontAwesomeIcons.calendarCheck,
-                      'Frequência',
-                    ),
+                    const SizedBox(width: 13),
 
-                    // TOTEM
-                    _buildMenuItem(
-                      1,
-                      FontAwesomeIcons.expand,
-                      'Totem Facial',
-                    ),
-
-                    // CADASTRAR ROSTO
-                    _buildMenuItem(
-                      2,
-                      FontAwesomeIcons.idCard,
-                      'Cadastrar Rosto',
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'SIFE',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: SifeTheme.textDark,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        Text(
+                          'Sistema Escolar Inteligente',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.blueGrey.shade400,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
 
               // ==================================================
-              // RODAPÉ DO USUÁRIO DINÂMICO
+              // LINHA
               // ==================================================
 
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 22),
+                child: Divider(
+                  height: 1,
+                  color: Colors.grey.shade200,
+                ),
+              ),
 
+              // ==================================================
+              // MENU
+              // ==================================================
+
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    14,
+                    20,
+                    14,
+                    20,
+                  ),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: 12,
+                        bottom: 10,
+                      ),
+                      child: Text(
+                        'MENU PRINCIPAL',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                          color: Colors.blueGrey.shade400,
+                        ),
+                      ),
+                    ),
+
+                    _buildMenuItem(
+                      index: 0,
+                      icon: FontAwesomeIcons.calendarCheck,
+                      label: 'Frequência',
+                      description: 'Controle de presença',
+                    ),
+
+                    _buildMenuItem(
+                      index: 1,
+                      icon: FontAwesomeIcons.expand,
+                      label: 'Totem Facial',
+                      description: 'Chamada automática',
+                    ),
+
+                    _buildMenuItem(
+                      index: 2,
+                      icon: FontAwesomeIcons.idCard,
+                      label: 'Cadastrar Rosto',
+                      description: 'Biometria dos alunos',
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: 12,
+                        bottom: 10,
+                      ),
+                      child: Text(
+                        'SISTEMA',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                          color: Colors.blueGrey.shade400,
+                        ),
+                      ),
+                    ),
+
+                    _buildInfoItem(
+                      FontAwesomeIcons.shieldHalved,
+                      'Reconhecimento facial',
+                    ),
+
+                    _buildInfoItem(
+                      FontAwesomeIcons.server,
+                      'Sistema conectado',
+                    ),
+                  ],
+                ),
+              ),
+
+              // ==================================================
+              // ÁREA DO USUÁRIO
+              // ==================================================
+
+              Container(
+                padding: const EdgeInsets.fromLTRB(
+                  16,
+                  14,
+                  16,
+                  16,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFAFAFB),
+                  border: Border(
+                    top: BorderSide(
+                      color: Colors.grey.shade200,
+                    ),
+                  ),
+                ),
                 child: FutureBuilder<Map<String, String>>(
                   future: _buscarDadosProfessor(),
                   builder: (context, snapshot) {
-                    final nome = snapshot.data?['nome'] ?? 'Carregando...';
-                    final email = snapshot.data?['email'] ?? '';
+                    final nome =
+                        snapshot.data?['nome'] ?? 'Professor(a)';
+
+                    final email =
+                        snapshot.data?['email'] ?? '';
+
                     final sigla = _gerarInicial(nome);
 
                     return Column(
@@ -239,56 +385,66 @@ class _NavigationMenuState extends State<NavigationMenu> {
                         // PERFIL
                         Container(
                           padding: const EdgeInsets.all(12),
-
                           decoration: BoxDecoration(
-                            color: SifeTheme.primaryRedSoft,
-                            borderRadius: BorderRadius.circular(16),
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.grey.shade200,
+                            ),
                           ),
-
                           child: Row(
                             children: [
-                              CircleAvatar(
-                                backgroundColor: SifeTheme.primaryRed,
-                                radius: 18,
-
-                                child: Text(
-                                  sigla,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: SifeTheme.primaryRed,
+                                  borderRadius:
+                                      BorderRadius.circular(12),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    sigla,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
                               ),
 
-                              const SizedBox(
-                                width: 12,
-                              ),
+                              const SizedBox(width: 11),
 
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,
-
                                   children: [
                                     Text(
                                       nome,
                                       maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                      overflow:
+                                          TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
                                         fontSize: 13,
-                                        color: SifeTheme.textDark,
+                                        fontWeight: FontWeight.w700,
+                                        color:
+                                            SifeTheme.textDark,
                                       ),
                                     ),
+
+                                    const SizedBox(height: 3),
 
                                     Text(
                                       email,
                                       maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey,
+                                      overflow:
+                                          TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color:
+                                            Colors.blueGrey.shade400,
                                       ),
                                     ),
                                   ],
@@ -298,54 +454,41 @@ class _NavigationMenuState extends State<NavigationMenu> {
                           ),
                         ),
 
-                        const SizedBox(
-                          height: 12,
-                        ),
+                        const SizedBox(height: 10),
 
-                        // SAIR DA CONTA
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(48),
-
-                            side: const BorderSide(
-                              color: SifeTheme.primaryRed,
-                            ),
-
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-
-                          icon: const FaIcon(
-                            FontAwesomeIcons.rightFromBracket,
-                            size: 14,
-                            color: SifeTheme.primaryRed,
-                          ),
-
-                          label: const Text(
-                            'Sair da Conta',
-                            style: TextStyle(
-                              color: SifeTheme.primaryRed,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-
-                          onPressed: () async {
-                            // Limpa dados salvos se necessário ao deslogar
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.clear();
-                            ApiService().setToken(null);
-
-                            if (!mounted) return;
-
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const LoginPage(),
+                        // SAIR
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor:
+                                  SifeTheme.primaryRed,
+                              side: BorderSide(
+                                color: SifeTheme.primaryRed
+                                    .withOpacity(0.35),
                               ),
-                            );
-                          },
+                              backgroundColor:
+                                  SifeTheme.primaryRedSoft
+                                      .withOpacity(0.35),
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(12),
+                              ),
+                            ),
+                            icon: const FaIcon(
+                              FontAwesomeIcons.rightFromBracket,
+                              size: 13,
+                            ),
+                            label: const Text(
+                              'Sair da conta',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            onPressed: _sairDaConta,
+                          ),
                         ),
                       ],
                     );
@@ -358,63 +501,186 @@ class _NavigationMenuState extends State<NavigationMenu> {
       ),
 
       // ========================================================
-      // PÁGINA ATUAL
+      // CONTEÚDO
       // ========================================================
 
-      body: _telas[_indiceSelecionado],
+      body: IndexedStack(
+        index: _indiceSelecionado,
+        children: _telas,
+      ),
     );
   }
 
   // ============================================================
-  // ITEM DO MENU
+  // ITEM PRINCIPAL DO MENU
   // ============================================================
 
-  Widget _buildMenuItem(
-    int index,
+  Widget _buildMenuItem({
+    required int index,
+    required IconData icon,
+    required String label,
+    required String description,
+  }) {
+    final bool selecionado = _indiceSelecionado == index;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 5),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () {
+            setState(() {
+              _indiceSelecionado = index;
+            });
+
+            Navigator.pop(context);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 11,
+            ),
+            decoration: BoxDecoration(
+              color: selecionado
+                  ? SifeTheme.primaryRedSoft
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+              border: selecionado
+                  ? Border.all(
+                      color: SifeTheme.primaryRed
+                          .withOpacity(0.08),
+                    )
+                  : null,
+            ),
+            child: Row(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: selecionado
+                        ? SifeTheme.primaryRed
+                        : const Color(0xFFF3F4F6),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Center(
+                    child: FaIcon(
+                      icon,
+                      size: 16,
+                      color: selecionado
+                          ? Colors.white
+                          : Colors.blueGrey.shade500,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 12),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: selecionado
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                          color: selecionado
+                              ? SifeTheme.primaryRed
+                              : SifeTheme.textDark,
+                        ),
+                      ),
+
+                      const SizedBox(height: 2),
+
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: selecionado
+                              ? SifeTheme.primaryRed
+                                  .withOpacity(0.65)
+                              : Colors.blueGrey.shade400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                if (selecionado)
+                  const FaIcon(
+                    FontAwesomeIcons.chevronRight,
+                    size: 10,
+                    color: SifeTheme.primaryRed,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // ITEM INFORMATIVO
+  // ============================================================
+
+  Widget _buildInfoItem(
     IconData icon,
     String label,
   ) {
-    final bool isSelected = _indiceSelecionado == index;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(
-        vertical: 2,
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 9,
       ),
-
-      decoration: BoxDecoration(
-        color: isSelected ? SifeTheme.primaryRedSoft : Colors.transparent,
-
-        borderRadius: BorderRadius.circular(12),
-      ),
-
-      child: ListTile(
-        leading: FaIcon(
-          icon,
-          size: 18,
-          color: isSelected ? SifeTheme.primaryRed : Colors.blueGrey.shade400,
-        ),
-
-        title: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? SifeTheme.primaryRed : SifeTheme.textDark,
-
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-
-            fontSize: 14,
+      child: Row(
+        children: [
+          FaIcon(
+            icon,
+            size: 13,
+            color: Colors.blueGrey.shade400,
           ),
-        ),
-
-        selected: isSelected,
-
-        onTap: () {
-          setState(() {
-            _indiceSelecionado = index;
-          });
-
-          Navigator.pop(context);
-        },
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Colors.blueGrey.shade500,
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  // ============================================================
+  // LOGOUT
+  // ============================================================
+
+  Future<void> _sairDaConta() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.clear();
+
+    ApiService().setToken(null);
+
+    if (!mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LoginPage(),
+      ),
+      (route) => false,
+    );
+  }
 }
+

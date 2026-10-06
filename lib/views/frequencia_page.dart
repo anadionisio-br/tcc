@@ -22,7 +22,6 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
   String _pesquisa = '';
 
   final Set<int> _salvandoAlunos = {};
-
   bool _salvandoLote = false;
 
   @override
@@ -50,14 +49,13 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
   }
 
   // ============================================================
-  // CARREGAR CHAMADA
+  // LÓGICA ORIGINAL
   // ============================================================
 
   Future<void> _carregarChamada() async {
     if (!mounted) return;
 
-    final controller =
-        context.read<FrequenciaController>();
+    final controller = context.read<FrequenciaController>();
 
     if (controller.turmaSelecionada == null ||
         controller.turmaSelecionada! <= 0) {
@@ -67,157 +65,119 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
     await controller.buscarChamada();
   }
 
-  // ============================================================
-  // STATUS DO ALUNO
-  // ============================================================
-
   bool _alunoEstaSalvando(int idAluno) {
     return _salvandoAlunos.contains(idAluno);
   }
 
   Future<void> _alterarStatusAluno(
-  FrequenciaController controller,
-  dynamic aluno,
-  bool novoPresente,
-) async {
-  final int idAluno = aluno.idAluno;
+    FrequenciaController controller,
+    dynamic aluno,
+    bool novoPresente,
+  ) async {
+    final int idAluno = aluno.idAluno;
 
-  // Não permite clicar enquanto o lote está sendo salvo.
-  if (_salvandoLote) {
-    return;
-  }
+    if (_salvandoLote) return;
 
-  // Evita dois cliques simultâneos no mesmo aluno.
-  if (_salvandoAlunos.contains(idAluno)) {
-    return;
-  }
+    if (_salvandoAlunos.contains(idAluno)) return;
 
-  // Verifica se existe turma selecionada.
-  if (controller.turmaSelecionada == null ||
-      controller.turmaSelecionada! <= 0) {
-    _mostrarMensagem(
-      'Nenhuma turma foi selecionada.',
-      erro: true,
-    );
-    return;
-  }
-
-  // Não permite registrar frequência em data futura.
-  if (_dataEhFutura(controller.dataSelecionada)) {
-    _mostrarMensagem(
-      'Não é permitido registrar chamada em uma data futura.',
-      erro: true,
-    );
-    return;
-  }
-
-  final String novoStatus =
-      novoPresente ? 'Presente' : 'Ausente';
-
-  // Se já estiver no status desejado, não faz nada.
-  if (aluno.status == novoStatus) {
-    return;
-  }
-
-  // Guarda o status anterior para podermos restaurar
-  // caso a API apresente algum erro.
-  final String statusAnterior =
-      aluno.status?.toString() ?? 'Ausente';
-
-  // ============================================================
-  // ALTERA VISUALMENTE ANTES DE ENVIAR
-  // ============================================================
-
-  aluno.status = novoStatus;
-
-  setState(() {
-    _salvandoAlunos.add(idAluno);
-  });
-
-  try {
-    bool sucesso;
-
-    // ============================================================
-    // ENVIA PARA O BANCO
-    // ============================================================
-
-    if (novoStatus == 'Presente') {
-      sucesso = await controller.registrarPresencaFacial(
-        idAluno,
+    if (controller.turmaSelecionada == null ||
+        controller.turmaSelecionada! <= 0) {
+      _mostrarMensagem(
+        'Nenhuma turma foi selecionada.',
+        erro: true,
       );
-    } else {
-      sucesso = await controller.registrarAusencia(
-        idAluno,
-      );
-    }
-
-    if (!mounted) {
       return;
     }
 
-    // ============================================================
-    // SE DEU ERRO, RESTAURA O STATUS ANTERIOR
-    // ============================================================
+    if (_dataEhFutura(controller.dataSelecionada)) {
+      _mostrarMensagem(
+        'Não é permitido registrar chamada em uma data futura.',
+        erro: true,
+      );
+      return;
+    }
 
-    if (!sucesso) {
+    final String novoStatus =
+        novoPresente ? 'Presente' : 'Ausente';
+
+    if (aluno.status == novoStatus) {
+      return;
+    }
+
+    final String statusAnterior =
+        aluno.status?.toString() ?? 'Ausente';
+
+    aluno.status = novoStatus;
+
+    setState(() {
+      _salvandoAlunos.add(idAluno);
+    });
+
+    try {
+      bool sucesso;
+
+      if (novoStatus == 'Presente') {
+        sucesso = await controller.registrarPresencaFacial(
+          idAluno,
+        );
+      } else {
+        sucesso = await controller.registrarAusencia(
+          idAluno,
+        );
+      }
+
+      if (!mounted) return;
+
+      if (!sucesso) {
+        aluno.status = statusAnterior;
+
+        _mostrarMensagem(
+          'Não foi possível salvar a frequência.',
+          erro: true,
+        );
+
+        setState(() {});
+        return;
+      }
+
+      _mostrarMensagem(
+        '${aluno.nome} marcado como $novoStatus.',
+        sucesso: true,
+      );
+    } catch (e, stackTrace) {
+      debugPrint(
+        'ERRO AO ALTERAR STATUS DO ALUNO: $e',
+      );
+
+      debugPrint(
+        'STACK: $stackTrace',
+      );
+
+      if (!mounted) return;
+
       aluno.status = statusAnterior;
 
       _mostrarMensagem(
-        'Não foi possível salvar a frequência.',
+        'Erro ao salvar a frequência.',
         erro: true,
       );
 
       setState(() {});
-      return;
-    }
-
-    // ============================================================
-    // SUCESSO
-    // ============================================================
-
-    _mostrarMensagem(
-      '${aluno.nome} marcado como $novoStatus.',
-      sucesso: true,
-    );
-  } catch (e, stackTrace) {
-    debugPrint(
-      'ERRO AO ALTERAR STATUS DO ALUNO: $e',
-    );
-
-    debugPrint(
-      'STACK: $stackTrace',
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    // Restaura o status anterior.
-    aluno.status = statusAnterior;
-
-    _mostrarMensagem(
-      'Erro ao salvar a frequência.',
-      erro: true,
-    );
-
-    setState(() {});
-  } finally {
-    if (mounted) {
-      setState(() {
-        _salvandoAlunos.remove(idAluno);
-      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _salvandoAlunos.remove(idAluno);
+        });
+      }
     }
   }
-}
-
 
   String _getIniciais(String nome) {
     if (nome.trim().isEmpty) {
       return '?';
     }
 
-    final partes =
-        nome.trim().split(RegExp(r'\s+'));
+    final partes = nome.trim().split(RegExp(r'\s+'));
 
     if (partes.length == 1) {
       return partes[0]
@@ -233,10 +193,6 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
       partes[1][0]
     ).toUpperCase();
   }
-
-  // ============================================================
-  // DATA FUTURA
-  // ============================================================
 
   bool _dataEhFutura(DateTime data) {
     final hoje = DateTime.now();
@@ -256,15 +212,10 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
     return dataSemHora.isAfter(hojeSemHora);
   }
 
-  // ============================================================
-  // TURMA
-  // ============================================================
-
   Map<String, dynamic>? _getTurmaSelecionada(
     FrequenciaController controller,
   ) {
-    final idSelecionado =
-        controller.turmaSelecionada;
+    final idSelecionado = controller.turmaSelecionada;
 
     if (idSelecionado == null) {
       return null;
@@ -286,8 +237,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
   String _getNomeTurma(
     FrequenciaController controller,
   ) {
-    final turma =
-        _getTurmaSelecionada(controller);
+    final turma = _getTurmaSelecionada(controller);
 
     if (turma == null) {
       return 'Turma não selecionada';
@@ -299,13 +249,9 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
     final serie =
         turma['serie']?.toString().trim() ?? '';
 
-    if (nome.isNotEmpty) {
-      return nome;
-    }
+    if (nome.isNotEmpty) return nome;
 
-    if (serie.isNotEmpty) {
-      return serie;
-    }
+    if (serie.isNotEmpty) return serie;
 
     return 'Turma ${controller.turmaSelecionada}';
   }
@@ -313,8 +259,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
   String _getDetalhesTurma(
     FrequenciaController controller,
   ) {
-    final turma =
-        _getTurmaSelecionada(controller);
+    final turma = _getTurmaSelecionada(controller);
 
     if (turma == null) {
       return 'Selecione uma turma para continuar';
@@ -331,17 +276,13 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                         .trim()
                         .isNotEmpty ==
                     true
-                ? turma['numero_sala']
-                    .toString()
-                    .trim()
+                ? turma['numero_sala'].toString().trim()
                 : turma['sala_turma']
                             ?.toString()
                             .trim()
                             .isNotEmpty ==
                         true
-                    ? turma['sala_turma']
-                        .toString()
-                        .trim()
+                    ? turma['sala_turma'].toString().trim()
                     : '';
 
     final informacoes = <String>[];
@@ -364,10 +305,6 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
 
     return informacoes.join(' • ');
   }
-
-  // ============================================================
-  // DATA
-  // ============================================================
 
   Future<void> _selecionarData(
     FrequenciaController controller,
@@ -410,14 +347,11 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme:
-                const ColorScheme.light(
-              primary:
-                  SifeTheme.primaryRed,
+            colorScheme: const ColorScheme.light(
+              primary: SifeTheme.primaryRed,
               onPrimary: Colors.white,
               surface: Colors.white,
-              onSurface:
-                  Color(0xFF1E293B),
+              onSurface: Color(0xFF172033),
             ),
           ),
           child: child!,
@@ -425,9 +359,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
       },
     );
 
-    if (picked == null || !mounted) {
-      return;
-    }
+    if (picked == null || !mounted) return;
 
     final dataEscolhida = DateTime(
       picked.year,
@@ -435,14 +367,8 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
       picked.day,
     );
 
-    await controller.mudarData(
-      dataEscolhida,
-    );
+    await controller.mudarData(dataEscolhida);
   }
-
-  // ============================================================
-  // ATUALIZAR
-  // ============================================================
 
   Future<void> _atualizar(
     FrequenciaController controller,
@@ -461,10 +387,6 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
       sucesso: true,
     );
   }
-
-  // ============================================================
-  // SALVAR CHAMADA
-  // ============================================================
 
   Future<void> _salvarChamadaLote(
     FrequenciaController controller,
@@ -488,9 +410,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
       return;
     }
 
-    if (_dataEhFutura(
-      controller.dataSelecionada,
-    )) {
+    if (_dataEhFutura(controller.dataSelecionada)) {
       _mostrarMensagem(
         'Não é permitido registrar chamada em uma data futura.',
         erro: true,
@@ -499,40 +419,32 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
     }
 
     final alunosParaSalvar =
-        List<dynamic>.from(
-      controller.alunos,
-    );
+        List<dynamic>.from(controller.alunos);
 
     setState(() {
       _salvandoLote = true;
 
       for (final aluno in alunosParaSalvar) {
-        _salvandoAlunos.add(
-          aluno.idAluno,
-        );
+        _salvandoAlunos.add(aluno.idAluno);
       }
     });
 
-    final resultados =
-        await Future.wait(
+    final resultados = await Future.wait(
       alunosParaSalvar.map(
         (aluno) async {
           try {
             if (aluno.status == 'Presente') {
-              return await controller
-                  .registrarPresencaFacial(
+              return await controller.registrarPresencaFacial(
                 aluno.idAluno,
               );
             }
 
-            return await controller
-                .registrarAusencia(
+            return await controller.registrarAusencia(
               aluno.idAluno,
             );
           } catch (e) {
             debugPrint(
-              'Erro ao salvar aluno '
-              '${aluno.idAluno}: $e',
+              'Erro ao salvar aluno ${aluno.idAluno}: $e',
             );
 
             return false;
@@ -558,9 +470,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
       _salvandoLote = false;
 
       for (final aluno in alunosParaSalvar) {
-        _salvandoAlunos.remove(
-          aluno.idAluno,
-        );
+        _salvandoAlunos.remove(aluno.idAluno);
       }
     });
 
@@ -577,10 +487,6 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
     }
   }
 
-  // ============================================================
-  // TOTEM
-  // ============================================================
-
   Future<void> _abrirTotem(
     FrequenciaController controller,
   ) async {
@@ -593,9 +499,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
       return;
     }
 
-    if (_dataEhFutura(
-      controller.dataSelecionada,
-    )) {
+    if (_dataEhFutura(controller.dataSelecionada)) {
       _mostrarMensagem(
         'Não é permitido registrar chamada em uma data futura.',
         erro: true,
@@ -618,15 +522,10 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
     );
   }
 
-  // ============================================================
-  // CADASTRAR ROSTO
-  // ============================================================
-
   Future<void> _cadastrarRosto(
     FrequenciaController controller,
   ) async {
-    final resultado =
-        await Navigator.push(
+    final resultado = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) =>
@@ -644,93 +543,79 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
     }
   }
 
-  // ============================================================
-  // TODOS PRESENTES
-  // ============================================================
-
   Future<void> _marcarTodosPresentes(
-  FrequenciaController controller,
-) async {
-  if (_salvandoLote) return;
+    FrequenciaController controller,
+  ) async {
+    if (_salvandoLote) return;
 
-  if (controller.alunos.isEmpty) {
-    return;
-  }
+    if (controller.alunos.isEmpty) return;
 
-  if (_dataEhFutura(controller.dataSelecionada)) {
-    _mostrarMensagem(
-      'Não é permitido registrar chamada em uma data futura.',
-      erro: true,
-    );
-    return;
-  }
-
-  int alterados = 0;
-
-  for (final aluno in controller.alunos) {
-    if (aluno.status != 'Presente') {
-      aluno.status = 'Presente';
-      alterados++;
+    if (_dataEhFutura(controller.dataSelecionada)) {
+      _mostrarMensagem(
+        'Não é permitido registrar chamada em uma data futura.',
+        erro: true,
+      );
+      return;
     }
-  }
 
-  if (mounted) {
-    setState(() {});
-  }
+    int alterados = 0;
 
-  _mostrarMensagem(
-    alterados == 0
-        ? 'Todos os alunos já estão presentes.'
-        : '$alterados aluno(s) marcado(s) como presente.',
-    sucesso: alterados > 0,
-    aviso: alterados == 0,
-  );
-}
-  // ============================================================
-  // TODOS AUSENTES
-  // ============================================================
+    for (final aluno in controller.alunos) {
+      if (aluno.status != 'Presente') {
+        aluno.status = 'Presente';
+        alterados++;
+      }
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+
+    _mostrarMensagem(
+      alterados == 0
+          ? 'Todos os alunos já estão presentes.'
+          : '$alterados aluno(s) marcado(s) como presente.',
+      sucesso: alterados > 0,
+      aviso: alterados == 0,
+    );
+  }
 
   Future<void> _marcarTodosAusentes(
-  FrequenciaController controller,
-) async {
-  if (_salvandoLote) return;
+    FrequenciaController controller,
+  ) async {
+    if (_salvandoLote) return;
 
-  if (controller.alunos.isEmpty) {
-    return;
-  }
+    if (controller.alunos.isEmpty) return;
 
-  if (_dataEhFutura(controller.dataSelecionada)) {
-    _mostrarMensagem(
-      'Não é permitido registrar chamada em uma data futura.',
-      erro: true,
-    );
-    return;
-  }
-
-  int alterados = 0;
-
-  for (final aluno in controller.alunos) {
-    if (aluno.status != 'Ausente') {
-      aluno.status = 'Ausente';
-      alterados++;
+    if (_dataEhFutura(controller.dataSelecionada)) {
+      _mostrarMensagem(
+        'Não é permitido registrar chamada em uma data futura.',
+        erro: true,
+      );
+      return;
     }
-  }
 
-  if (mounted) {
-    setState(() {});
-  }
+    int alterados = 0;
 
-  _mostrarMensagem(
-    alterados == 0
-        ? 'Todos os alunos já estão ausentes.'
-        : '$alterados aluno(s) marcado(s) como ausente.',
-    sucesso: alterados > 0,
-    aviso: alterados == 0,
-  );
-}
-  // ============================================================
-  // VOLTAR
-  // ============================================================
+    for (final aluno in controller.alunos) {
+      if (aluno.status != 'Ausente') {
+        aluno.status = 'Ausente';
+        alterados++;
+      }
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+
+    _mostrarMensagem(
+      alterados == 0
+          ? 'Todos os alunos já estão ausentes.'
+          : '$alterados aluno(s) marcado(s) como ausente.',
+      sucesso: alterados > 0,
+      aviso: alterados == 0,
+    );
+  }
 
   void _voltarParaTurmas() {
     if (_salvandoAlunos.isNotEmpty ||
@@ -741,10 +626,6 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
     Navigator.of(context).pop();
   }
 
-  // ============================================================
-  // MENSAGEM
-  // ============================================================
-
   void _mostrarMensagem(
     String mensagem, {
     bool sucesso = false,
@@ -753,8 +634,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
   }) {
     if (!mounted) return;
 
-    Color cor =
-        const Color(0xFF334155);
+    Color cor = const Color(0xFF334155);
 
     if (sucesso) {
       cor = const Color(0xFF16A34A);
@@ -778,7 +658,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
           shape:
               RoundedRectangleBorder(
             borderRadius:
-                BorderRadius.circular(12),
+                BorderRadius.circular(14),
           ),
           content: Row(
             children: [
@@ -794,8 +674,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
               Expanded(
                 child: Text(
                   mensagem,
-                  style:
-                      const TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight:
                         FontWeight.w600,
@@ -807,10 +686,6 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
         ),
       );
   }
-
-  // ============================================================
-  // FILTRAR
-  // ============================================================
 
   List<dynamic> _alunosFiltrados(
     FrequenciaController controller,
@@ -847,13 +722,10 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
 
     final celular = largura < 600;
     final tablet =
-        largura >= 600 &&
-        largura < 1000;
+        largura >= 600 && largura < 1000;
 
     final dataFutura =
-        _dataEhFutura(
-      controller.dataSelecionada,
-    );
+        _dataEhFutura(controller.dataSelecionada);
 
     final podeRegistrar =
         controller.turmaSelecionada != null &&
@@ -887,7 +759,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
 
     return Scaffold(
       backgroundColor:
-          const Color(0xFFF6F7F9),
+          const Color(0xFFF4F6F8),
       floatingActionButton:
           _buildTotemButton(controller),
       body: SafeArea(
@@ -897,8 +769,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                 child:
                     CircularProgressIndicator(
                   valueColor:
-                      AlwaysStoppedAnimation<
-                          Color>(
+                      AlwaysStoppedAnimation<Color>(
                     SifeTheme.primaryRed,
                   ),
                 ),
@@ -915,33 +786,31 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                   padding:
                       EdgeInsets.fromLTRB(
                     celular
-                        ? 14
+                        ? 16
                         : tablet
-                            ? 24
-                            : 32,
-                    celular ? 16 : 24,
+                            ? 26
+                            : 40,
+                    celular ? 18 : 30,
                     celular
-                        ? 14
+                        ? 16
                         : tablet
-                            ? 24
-                            : 32,
-                    celular ? 120 : 110,
+                            ? 26
+                            : 40,
+                    celular ? 115 : 105,
                   ),
                   child: Center(
                     child:
                         ConstrainedBox(
                       constraints:
                           const BoxConstraints(
-                        maxWidth: 1500,
+                        maxWidth: 1450,
                       ),
                       child: Column(
                         crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
+                            CrossAxisAlignment.start,
                         children: [
                           _buildVoltar(),
-                          const SizedBox(
-                              height: 18),
+                          const SizedBox(height: 24),
 
                           _buildCabecalho(
                             largura: largura,
@@ -953,16 +822,14 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                                 podeRegistrar,
                           ),
 
-                          const SizedBox(
-                              height: 22),
+                          const SizedBox(height: 28),
 
                           _buildTurma(
                             controller,
                             celular,
                           ),
 
-                          const SizedBox(
-                              height: 20),
+                          const SizedBox(height: 18),
 
                           if (dataFutura)
                             _buildAvisoDataFutura(),
@@ -974,23 +841,18 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                             celular,
                           ),
 
-                          const SizedBox(
-                              height: 20),
+                          const SizedBox(height: 20),
 
                           _buildEstatisticas(
                             total: total,
-                            presentes:
-                                presentes,
-                            ausentes:
-                                ausentes,
+                            presentes: presentes,
+                            ausentes: ausentes,
                             aproveitamento:
                                 aproveitamento,
-                            largura:
-                                largura,
+                            largura: largura,
                           ),
 
-                          const SizedBox(
-                              height: 24),
+                          const SizedBox(height: 22),
 
                           _buildListaAlunos(
                             controller,
@@ -1009,75 +871,26 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
   }
 
   // ============================================================
-  // TOTEM
-  // ============================================================
-
-  Widget _buildTotemButton(
-    FrequenciaController controller,
-  ) {
-    final dataFutura =
-        _dataEhFutura(
-      controller.dataSelecionada,
-    );
-
-    final podeRegistrar =
-        controller.turmaSelecionada != null &&
-        controller.turmaSelecionada! > 0 &&
-        controller.alunos.isNotEmpty &&
-        !dataFutura &&
-        !_salvandoLote;
-
-    return FloatingActionButton.extended(
-      backgroundColor:
-          podeRegistrar
-              ? SifeTheme.primaryRed
-              : Colors.grey.shade400,
-      elevation: 4,
-      icon: const FaIcon(
-        FontAwesomeIcons.expand,
-        color: Colors.white,
-        size: 15,
-      ),
-      label: Text(
-        _salvandoLote
-            ? 'Salvando...'
-            : 'Ativar Modo Totem',
-        style:
-            const TextStyle(
-          color: Colors.white,
-          fontWeight:
-              FontWeight.bold,
-        ),
-      ),
-      onPressed:
-          podeRegistrar
-              ? () => _abrirTotem(
-                    controller,
-                  )
-              : null,
-    );
-  }
-
-  // ============================================================
-  // VOLTAR
+  // CABEÇALHO
   // ============================================================
 
   Widget _buildVoltar() {
     final bloqueado =
         _salvandoAlunos.isNotEmpty ||
-            _salvandoLote;
+        _salvandoLote;
 
     return InkWell(
-      onTap: bloqueado
-          ? null
-          : _voltarParaTurmas,
+      onTap:
+          bloqueado
+              ? null
+              : _voltarParaTurmas,
       borderRadius:
           BorderRadius.circular(10),
       child: Padding(
         padding:
             const EdgeInsets.symmetric(
-          vertical: 8,
-          horizontal: 4,
+          vertical: 6,
+          horizontal: 2,
         ),
         child: Row(
           mainAxisSize:
@@ -1085,19 +898,21 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
           children: [
             Icon(
               Icons.arrow_back_rounded,
-              size: 20,
-              color: bloqueado
-                  ? Colors.grey
-                  : SifeTheme.primaryRed,
+              size: 19,
+              color:
+                  bloqueado
+                      ? Colors.grey
+                      : SifeTheme.primaryRed,
             ),
             const SizedBox(width: 7),
             Text(
               'Voltar para Turmas',
               style: TextStyle(
-                color: bloqueado
-                    ? Colors.grey
-                    : SifeTheme.primaryRed,
-                fontSize: 15,
+                color:
+                    bloqueado
+                        ? Colors.grey
+                        : SifeTheme.primaryRed,
+                fontSize: 14,
                 fontWeight:
                     FontWeight.w700,
               ),
@@ -1107,10 +922,6 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
       ),
     );
   }
-
-  // ============================================================
-  // CABEÇALHO
-  // ============================================================
 
   Widget _buildCabecalho({
     required double largura,
@@ -1130,39 +941,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
         crossAxisAlignment:
             CrossAxisAlignment.start,
         children: [
-          const Text(
-            'REGISTRO DE AULA',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight:
-                  FontWeight.w800,
-              color:
-                  Color(0xFF64748B),
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            'Frequência',
-            style: TextStyle(
-              fontSize:
-                  celular ? 28 : 30,
-              fontWeight:
-                  FontWeight.w900,
-              color:
-                  const Color(0xFF172033),
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            'Gerencie a presença dos alunos desta turma.',
-            style: TextStyle(
-              fontSize:
-                  celular ? 13 : 14,
-              color:
-                  Colors.grey.shade600,
-            ),
-          ),
+          _buildTitulo(),
           const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,
@@ -1177,50 +956,69 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
           CrossAxisAlignment.end,
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'REGISTRO DE AULA',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight:
-                      FontWeight.w800,
-                  color:
-                      Color(0xFF64748B),
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 5),
-              const Text(
-                'Frequência',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight:
-                      FontWeight.w900,
-                  color:
-                      Color(0xFF172033),
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                'Gerencie a presença dos alunos desta turma.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color:
-                      Colors.grey.shade600,
-                ),
-              ),
-            ],
-          ),
+          child: _buildTitulo(),
         ),
-        const SizedBox(width: 24),
+        const SizedBox(width: 30),
         Flexible(
           child: Align(
             alignment:
                 Alignment.centerRight,
             child: botoes,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTitulo() {
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 5,
+          ),
+          decoration:
+              BoxDecoration(
+            color:
+                const Color(0xFFFEE2E2),
+            borderRadius:
+                BorderRadius.circular(7),
+          ),
+          child: const Text(
+            'REGISTRO DE AULA',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight:
+                  FontWeight.w900,
+              color:
+                  SifeTheme.primaryRed,
+              letterSpacing: 1.1,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Frequência',
+          style: TextStyle(
+            fontSize: 32,
+            height: 1.05,
+            fontWeight:
+                FontWeight.w900,
+            color:
+                Color(0xFF111827),
+          ),
+        ),
+        const SizedBox(height: 7),
+        Text(
+          'Gerencie a presença dos alunos desta turma.',
+          style: TextStyle(
+            fontSize: 14,
+            color:
+                Colors.grey.shade600,
           ),
         ),
       ],
@@ -1238,10 +1036,8 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
     return Wrap(
       alignment:
           WrapAlignment.end,
-      crossAxisAlignment:
-          WrapCrossAlignment.center,
-      spacing: 10,
-      runSpacing: 10,
+      spacing: 9,
+      runSpacing: 9,
       children: [
         OutlinedButton.icon(
           style:
@@ -1249,39 +1045,40 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
             backgroundColor:
                 Colors.white,
             foregroundColor:
-                SifeTheme.primaryRed,
+                const Color(0xFF334155),
             padding:
                 const EdgeInsets.symmetric(
-              horizontal: 18,
+              horizontal: 17,
               vertical: 14,
             ),
             shape:
                 RoundedRectangleBorder(
               borderRadius:
-                  BorderRadius.circular(
-                11,
-              ),
+                  BorderRadius.circular(11),
             ),
             side: BorderSide(
               color:
-                  Colors.grey.shade300,
+                  const Color(0xFFE2E8F0),
             ),
           ),
           icon: const FaIcon(
             FontAwesomeIcons.userPlus,
-            size: 14,
+            size: 13,
+            color:
+                SifeTheme.primaryRed,
           ),
           label: const Text(
             'Cadastrar Rosto',
             style: TextStyle(
               fontWeight:
-                  FontWeight.bold,
+                  FontWeight.w700,
             ),
           ),
           onPressed:
               _salvandoLote
                   ? null
-                  : () => _cadastrarRosto(
+                  : () =>
+                      _cadastrarRosto(
                         controller,
                       ),
         ),
@@ -1294,24 +1091,23 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                     : Colors.grey.shade400,
             foregroundColor:
                 Colors.white,
+            elevation: 0,
             padding:
                 const EdgeInsets.symmetric(
-              horizontal: 20,
+              horizontal: 19,
               vertical: 14,
             ),
             shape:
                 RoundedRectangleBorder(
               borderRadius:
-                  BorderRadius.circular(
-                11,
-              ),
+                  BorderRadius.circular(11),
             ),
           ),
           icon:
               _salvandoLote
                   ? const SizedBox(
-                      width: 17,
-                      height: 17,
+                      width: 16,
+                      height: 16,
                       child:
                           CircularProgressIndicator(
                         color:
@@ -1322,7 +1118,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                   : const FaIcon(
                       FontAwesomeIcons
                           .floppyDisk,
-                      size: 14,
+                      size: 13,
                     ),
           label: Text(
             _salvandoLote
@@ -1332,11 +1128,13 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                 const TextStyle(
               fontWeight:
                   FontWeight.w800,
+              fontSize: 12,
             ),
           ),
           onPressed:
               podeRegistrar
-                  ? () => _salvarChamadaLote(
+                  ? () =>
+                      _salvarChamadaLote(
                         controller,
                       )
                   : null,
@@ -1363,23 +1161,21 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
               decoration:
                   BoxDecoration(
                 borderRadius:
-                    BorderRadius.circular(
-                  11,
-                ),
+                    BorderRadius.circular(11),
                 border: Border.all(
                   color:
-                      Colors.grey.shade300,
+                      const Color(0xFFE2E8F0),
                 ),
               ),
               child: Icon(
                 Icons.refresh_rounded,
+                size: 20,
                 color:
                     _salvandoLote ||
                             _salvandoAlunos
                                 .isNotEmpty
                         ? Colors.grey
-                        : SifeTheme
-                            .primaryRed,
+                        : SifeTheme.primaryRed,
               ),
             ),
           ),
@@ -1406,35 +1202,49 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
           BoxDecoration(
         color: Colors.white,
         borderRadius:
-            BorderRadius.circular(16),
+            BorderRadius.circular(18),
         border: Border.all(
           color:
-              const Color(0xFFE8EBEF),
+              const Color(0xFFE5E7EB),
         ),
+        boxShadow: [
+          BoxShadow(
+            color:
+                Colors.black.withOpacity(.025),
+            blurRadius: 18,
+            offset:
+                const Offset(0, 6),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
             width:
-                celular ? 44 : 50,
+                celular ? 46 : 52,
             height:
-                celular ? 44 : 50,
+                celular ? 46 : 52,
             decoration:
                 BoxDecoration(
-              color:
-                  const Color(0xFFFEE2E2),
+              gradient:
+                  const LinearGradient(
+                colors: [
+                  Color(0xFFFFE4E6),
+                  Color(0xFFFEE2E2),
+                ],
+              ),
               borderRadius:
-                  BorderRadius.circular(12),
+                  BorderRadius.circular(14),
             ),
             child: Icon(
               Icons.school_rounded,
               color:
                   SifeTheme.primaryRed,
               size:
-                  celular ? 21 : 24,
+                  celular ? 22 : 25,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment:
@@ -1443,14 +1253,15 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                 Text(
                   'TURMA SELECIONADA',
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 9,
                     fontWeight:
-                        FontWeight.bold,
+                        FontWeight.w900,
+                    letterSpacing: .8,
                     color:
-                        Colors.grey.shade600,
+                        Colors.grey.shade500,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 5),
                 Text(
                   _getNomeTurma(
                     controller,
@@ -1460,13 +1271,11 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                       TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize:
-                        celular ? 16 : 18,
+                        celular ? 17 : 19,
                     fontWeight:
                         FontWeight.w800,
                     color:
-                        const Color(
-                      0xFF172033,
-                    ),
+                        const Color(0xFF172033),
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -1480,7 +1289,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                   style: TextStyle(
                     fontSize: 12,
                     color:
-                        Colors.grey.shade600,
+                        Colors.grey.shade500,
                   ),
                 ),
               ],
@@ -1500,19 +1309,19 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
       width: double.infinity,
       margin:
           const EdgeInsets.only(
-        bottom: 20,
+        bottom: 18,
       ),
       padding:
-          const EdgeInsets.all(16),
+          const EdgeInsets.all(15),
       decoration:
           BoxDecoration(
         color:
-            const Color(0xFFFFF7ED),
+            const Color(0xFFFFFBEB),
         borderRadius:
             BorderRadius.circular(14),
         border: Border.all(
           color:
-              const Color(0xFFF59E0B),
+              const Color(0xFFFCD34D),
         ),
       ),
       child: const Row(
@@ -1528,7 +1337,8 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
               'A data selecionada é futura. Não é possível registrar ou alterar a chamada.',
               style: TextStyle(
                 color:
-                    Color(0xFF9A3412),
+                    Color(0xFF92400E),
+                fontSize: 13,
                 fontWeight:
                     FontWeight.w600,
               ),
@@ -1553,17 +1363,26 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
       width: double.infinity,
       padding:
           EdgeInsets.all(
-        celular ? 14 : 20,
+        celular ? 14 : 18,
       ),
       decoration:
           BoxDecoration(
         color: Colors.white,
         borderRadius:
-            BorderRadius.circular(16),
+            BorderRadius.circular(18),
         border: Border.all(
           color:
-              const Color(0xFFE8EBEF),
+              const Color(0xFFE5E7EB),
         ),
+        boxShadow: [
+          BoxShadow(
+            color:
+                Colors.black.withOpacity(.02),
+            blurRadius: 16,
+            offset:
+                const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -1576,22 +1395,19 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
               if (pequeno) {
                 return Column(
                   crossAxisAlignment:
-                      CrossAxisAlignment
-                          .stretch,
+                      CrossAxisAlignment.stretch,
                   children: [
                     _buildDataButton(
                       controller,
                       dataFutura,
                     ),
-                    const SizedBox(
-                        height: 10),
+                    const SizedBox(height: 9),
                     _buildTodosPresentes(
                       controller,
                       podeRegistrar,
                       fullWidth: true,
                     ),
-                    const SizedBox(
-                        height: 10),
+                    const SizedBox(height: 9),
                     _buildTodosAusentes(
                       controller,
                       podeRegistrar,
@@ -1610,14 +1426,12 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                       dataFutura,
                     ),
                   ),
-                  const SizedBox(
-                      width: 14),
+                  const SizedBox(width: 10),
                   _buildTodosPresentes(
                     controller,
                     podeRegistrar,
                   ),
-                  const SizedBox(
-                      width: 10),
+                  const SizedBox(width: 8),
                   _buildTodosAusentes(
                     controller,
                     podeRegistrar,
@@ -1626,19 +1440,32 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
               );
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           TextField(
             controller:
                 _pesquisaController,
             enabled:
                 !_salvandoLote,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight:
+                  FontWeight.w500,
+            ),
             decoration:
                 InputDecoration(
               hintText:
-                  'Pesquisar por nome ou matrícula...',
+                  'Pesquisar aluno por nome ou matrícula...',
+              hintStyle: TextStyle(
+                color:
+                    Colors.grey.shade400,
+                fontSize: 13,
+              ),
               prefixIcon:
-                  const Icon(
+                  Icon(
                 Icons.search_rounded,
+                color:
+                    Colors.grey.shade500,
+                size: 21,
               ),
               suffixIcon:
                   _pesquisa.isNotEmpty
@@ -1650,22 +1477,48 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                           icon:
                               const Icon(
                             Icons.close_rounded,
+                            size: 19,
                           ),
                         )
                       : null,
               filled: true,
               fillColor:
-                  const Color(
-                0xFFF8FAFC,
+                  const Color(0xFFF8FAFC),
+              contentPadding:
+                  const EdgeInsets.symmetric(
+                vertical: 15,
+                horizontal: 15,
               ),
               border:
                   OutlineInputBorder(
                 borderRadius:
-                    BorderRadius.circular(
-                  12,
-                ),
+                    BorderRadius.circular(12),
                 borderSide:
-                    BorderSide.none,
+                    BorderSide(
+                  color:
+                      const Color(0xFFE2E8F0),
+                ),
+              ),
+              enabledBorder:
+                  OutlineInputBorder(
+                borderRadius:
+                    BorderRadius.circular(12),
+                borderSide:
+                    const BorderSide(
+                  color:
+                      Color(0xFFE2E8F0),
+                ),
+              ),
+              focusedBorder:
+                  OutlineInputBorder(
+                borderRadius:
+                    BorderRadius.circular(12),
+                borderSide:
+                    const BorderSide(
+                  color:
+                      SifeTheme.primaryRed,
+                  width: 1.4,
+                ),
               ),
             ),
           ),
@@ -1675,7 +1528,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
   }
 
   // ============================================================
-  // DATA BUTTON
+  // DATA
   // ============================================================
 
   Widget _buildDataButton(
@@ -1686,7 +1539,8 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
       onTap:
           _salvandoLote
               ? null
-              : () => _selecionarData(
+              : () =>
+                  _selecionarData(
                     controller,
                   ),
       borderRadius:
@@ -1694,7 +1548,10 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
       child: Container(
         width: double.infinity,
         padding:
-            const EdgeInsets.all(14),
+            const EdgeInsets.symmetric(
+          horizontal: 13,
+          vertical: 10,
+        ),
         decoration:
             BoxDecoration(
           color:
@@ -1703,10 +1560,8 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
               BorderRadius.circular(12),
           border: Border.all(
             color: dataFutura
-                ? const Color(
-                    0xFFF59E0B)
-                : const Color(
-                    0xFFE2E8F0),
+                ? const Color(0xFFF59E0B)
+                : const Color(0xFFE2E8F0),
           ),
         ),
         child: Row(
@@ -1717,51 +1572,43 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
               decoration:
                   BoxDecoration(
                 color: dataFutura
-                    ? const Color(
-                        0xFFFFEDD5)
-                    : const Color(
-                        0xFFFEE2E2),
+                    ? const Color(0xFFFFEDD5)
+                    : const Color(0xFFFEE2E2),
                 borderRadius:
-                    BorderRadius.circular(
-                  10,
-                ),
+                    BorderRadius.circular(10),
               ),
               child: Icon(
-                Icons
-                    .calendar_month_rounded,
+                Icons.calendar_month_rounded,
                 color: dataFutura
-                    ? const Color(
-                        0xFFD97706)
-                    : SifeTheme
-                        .primaryRed,
+                    ? const Color(0xFFD97706)
+                    : SifeTheme.primaryRed,
+                size: 20,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 11),
             Expanded(
               child: Column(
                 crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
+                    CrossAxisAlignment.start,
                 children: [
                   Text(
                     'DATA DA AULA',
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 9,
                       fontWeight:
-                          FontWeight.bold,
+                          FontWeight.w900,
+                      letterSpacing: .6,
                       color:
-                          Colors.grey.shade600,
+                          Colors.grey.shade500,
                     ),
                   ),
-                  const SizedBox(
-                      height: 4),
+                  const SizedBox(height: 4),
                   Text(
-                    controller
-                        .dataFormatada,
+                    controller.dataFormatada,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight:
-                          FontWeight.bold,
+                          FontWeight.w800,
                       color:
                           Color(0xFF172033),
                     ),
@@ -1769,10 +1616,10 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                 ],
               ),
             ),
-            const Icon(
-              Icons
-                  .keyboard_arrow_down_rounded,
-              color: Colors.grey,
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color:
+                  Colors.grey.shade500,
             ),
           ],
         ),
@@ -1781,7 +1628,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
   }
 
   // ============================================================
-  // TODOS PRESENTES
+  // PRESENTES / AUSENTES
   // ============================================================
 
   Widget _buildTodosPresentes(
@@ -1801,6 +1648,27 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                       controller,
                     )
                 : null,
+        style:
+            OutlinedButton.styleFrom(
+          foregroundColor:
+              const Color(0xFF15803D),
+          backgroundColor:
+              const Color(0xFFF0FDF4),
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 13,
+          ),
+          side: const BorderSide(
+            color:
+                Color(0xFFBBF7D0),
+          ),
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(11),
+          ),
+        ),
         icon: const Icon(
           Icons.check_circle_outline,
           size: 17,
@@ -1810,19 +1678,14 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
         label: const Text(
           'Todos presentes',
           style: TextStyle(
-            color:
-                Color(0xFF15803D),
+            fontSize: 12,
             fontWeight:
-                FontWeight.bold,
+                FontWeight.w800,
           ),
         ),
       ),
     );
   }
-
-  // ============================================================
-  // TODOS AUSENTES
-  // ============================================================
 
   Widget _buildTodosAusentes(
     FrequenciaController controller,
@@ -1841,6 +1704,27 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                       controller,
                     )
                 : null,
+        style:
+            OutlinedButton.styleFrom(
+          foregroundColor:
+              const Color(0xFFB91C1C),
+          backgroundColor:
+              const Color(0xFFFEF2F2),
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 13,
+          ),
+          side: const BorderSide(
+            color:
+                Color(0xFFFECACA),
+          ),
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(11),
+          ),
+        ),
         icon: const Icon(
           Icons.cancel_outlined,
           size: 17,
@@ -1850,10 +1734,9 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
         label: const Text(
           'Todos ausentes',
           style: TextStyle(
-            color:
-                Color(0xFFB91C1C),
+            fontSize: 12,
             fontWeight:
-                FontWeight.bold,
+                FontWeight.w800,
           ),
         ),
       ),
@@ -1871,42 +1754,35 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
     required double aproveitamento,
     required double largura,
   }) {
-    final celular =
-        largura < 600;
+    final celular = largura < 600;
 
     final cards = [
       _buildStatCard(
         title: 'TOTAL',
         value: total.toString(),
-        icon:
-            Icons.groups_rounded,
+        icon: Icons.groups_rounded,
         valueColor:
-            const Color(0xFF1E293B),
+            const Color(0xFF334155),
       ),
       _buildStatCard(
         title: 'PRESENTES',
-        value:
-            presentes.toString(),
-        icon:
-            Icons.check_circle_rounded,
+        value: presentes.toString(),
+        icon: Icons.check_circle_rounded,
         valueColor:
             const Color(0xFF16A34A),
       ),
       _buildStatCard(
         title: 'AUSENTES',
-        value:
-            ausentes.toString(),
-        icon:
-            Icons.cancel_rounded,
+        value: ausentes.toString(),
+        icon: Icons.cancel_rounded,
         valueColor:
-            const Color(0xFFD92D20),
+            const Color(0xFFDC2626),
       ),
       _buildStatCard(
         title: 'APROVEITAMENTO',
         value:
             '${aproveitamento.toStringAsFixed(0)}%',
-        icon:
-            Icons.analytics_rounded,
+        icon: Icons.analytics_rounded,
         valueColor:
             const Color(0xFF2563EB),
         progress:
@@ -1922,7 +1798,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
         shrinkWrap: true,
         physics:
             const NeverScrollableScrollPhysics(),
-        childAspectRatio: 1.45,
+        childAspectRatio: 1.48,
         children: cards,
       );
     }
@@ -1934,16 +1810,129 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                 (card) => Expanded(
                   child: Padding(
                     padding:
-                        const EdgeInsets
-                            .only(
-                      right: 7,
-                      left: 7,
+                        const EdgeInsets.symmetric(
+                      horizontal: 5,
                     ),
                     child: card,
                   ),
                 ),
               )
               .toList(),
+    );
+  }
+
+  Widget _buildStatCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color valueColor,
+    double? progress,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding:
+          const EdgeInsets.all(15),
+      decoration:
+          BoxDecoration(
+        color: Colors.white,
+        borderRadius:
+            BorderRadius.circular(16),
+        border: Border.all(
+          color:
+              const Color(0xFFE5E7EB),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color:
+                Colors.black.withOpacity(.025),
+            blurRadius: 15,
+            offset:
+                const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration:
+                BoxDecoration(
+              color:
+                  valueColor.withOpacity(.08),
+              borderRadius:
+                  BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: valueColor,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight:
+                        FontWeight.w900,
+                    letterSpacing: .6,
+                    color:
+                        Colors.grey.shade500,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 23,
+                    fontWeight:
+                        FontWeight.w900,
+                    color: valueColor,
+                  ),
+                ),
+                if (progress != null)
+                  Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      top: 5,
+                    ),
+                    child:
+                        ClipRRect(
+                      borderRadius:
+                          BorderRadius.circular(
+                        10,
+                      ),
+                      child:
+                          LinearProgressIndicator(
+                        value:
+                            progress.clamp(
+                          0.0,
+                          1.0,
+                        ),
+                        minHeight: 5,
+                        backgroundColor:
+                            const Color(
+                          0xFFEFF2F5,
+                        ),
+                        valueColor:
+                            AlwaysStoppedAnimation<
+                                Color>(
+                          valueColor,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1963,44 +1952,104 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
           BoxDecoration(
         color: Colors.white,
         borderRadius:
-            BorderRadius.circular(16),
+            BorderRadius.circular(18),
         border: Border.all(
           color:
-              const Color(0xFFE8EBEF),
+              const Color(0xFFE5E7EB),
         ),
+        boxShadow: [
+          BoxShadow(
+            color:
+                Colors.black.withOpacity(.025),
+            blurRadius: 18,
+            offset:
+                const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Padding(
             padding:
                 const EdgeInsets.fromLTRB(
-              16,
+              20,
               18,
+              20,
               16,
-              14,
             ),
             child: Row(
               children: [
-                const Expanded(
-                  child: Text(
-                    'ALUNOS',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight:
-                          FontWeight.w800,
-                      color:
-                          Color(0xFF475569),
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration:
+                      BoxDecoration(
+                    color:
+                        const Color(0xFFFEE2E2),
+                    borderRadius:
+                        BorderRadius.circular(
+                      10,
                     ),
                   ),
-                ),
-                Text(
-                  _pesquisa.isNotEmpty
-                      ? '${alunosFiltrados.length} encontrado(s)'
-                      : '$total aluno(s)',
-                  style: TextStyle(
-                    fontSize: 12,
+                  child: const Icon(
+                    Icons.groups_rounded,
                     color:
-                        Colors.grey.shade500,
+                        SifeTheme.primaryRed,
+                    size: 19,
+                  ),
+                ),
+                const SizedBox(width: 11),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Alunos',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight:
+                              FontWeight.w800,
+                          color:
+                              Color(0xFF172033),
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Controle individual de presença',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color:
+                              Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration:
+                      BoxDecoration(
+                    color:
+                        const Color(0xFFF8FAFC),
+                    borderRadius:
+                        BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _pesquisa.isNotEmpty
+                        ? '${alunosFiltrados.length} encontrados'
+                        : '$total alunos',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight:
+                          FontWeight.w700,
+                      color:
+                          Color(0xFF64748B),
+                    ),
                   ),
                 ),
               ],
@@ -2008,6 +2057,8 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
           ),
           const Divider(
             height: 1,
+            color:
+                Color(0xFFEFF1F4),
           ),
           if (alunosFiltrados.isEmpty)
             _buildListaVazia()
@@ -2022,6 +2073,10 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                   (context, index) =>
                       const Divider(
                 height: 1,
+                indent: 20,
+                endIndent: 20,
+                color:
+                    Color(0xFFF1F3F5),
               ),
               itemBuilder:
                   (context, index) {
@@ -2045,25 +2100,32 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
     );
   }
 
-  // ============================================================
-  // LISTA VAZIA
-  // ============================================================
-
   Widget _buildListaVazia() {
     return Padding(
       padding:
-          const EdgeInsets.all(45),
+          const EdgeInsets.all(50),
       child: Column(
         children: [
-          Icon(
-            _pesquisa.isNotEmpty
-                ? Icons.search_off_rounded
-                : Icons.groups_outlined,
-            size: 45,
-            color:
-                Colors.grey.shade400,
+          Container(
+            width: 70,
+            height: 70,
+            decoration:
+                BoxDecoration(
+              color:
+                  const Color(0xFFF8FAFC),
+              borderRadius:
+                  BorderRadius.circular(20),
+            ),
+            child: Icon(
+              _pesquisa.isNotEmpty
+                  ? Icons.search_off_rounded
+                  : Icons.groups_outlined,
+              size: 32,
+              color:
+                  Colors.grey.shade400,
+            ),
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 16),
           Text(
             _pesquisa.isNotEmpty
                 ? 'Nenhum aluno encontrado'
@@ -2072,11 +2134,25 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                 TextAlign.center,
             style:
                 const TextStyle(
-              fontSize: 16,
+              fontSize: 15,
               fontWeight:
-                  FontWeight.bold,
+                  FontWeight.w800,
               color:
                   Color(0xFF334155),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            _pesquisa.isNotEmpty
+                ? 'Tente pesquisar por outro nome ou matrícula.'
+                : 'Não há alunos disponíveis nesta turma.',
+            textAlign:
+                TextAlign.center,
+            style:
+                const TextStyle(
+              fontSize: 12,
+              color:
+                  Color(0xFF94A3B8),
             ),
           ),
         ],
@@ -2105,8 +2181,8 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
     return Padding(
       padding:
           const EdgeInsets.symmetric(
-        horizontal: 24,
-        vertical: 14,
+        horizontal: 20,
+        vertical: 13,
       ),
       child: Row(
         children: [
@@ -2116,10 +2192,9 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                 _buildAvatarAluno(
                   aluno,
                   isPresente,
-                  42,
+                  44,
                 ),
-                const SizedBox(
-                    width: 14),
+                const SizedBox(width: 13),
                 Expanded(
                   child:
                       _buildInfoAluno(
@@ -2133,7 +2208,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
             const Padding(
               padding:
                   EdgeInsets.only(
-                right: 10,
+                right: 12,
               ),
               child:
                   SizedBox(
@@ -2143,8 +2218,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                     CircularProgressIndicator(
                   strokeWidth: 2,
                   color:
-                      SifeTheme
-                          .primaryRed,
+                      SifeTheme.primaryRed,
                 ),
               ),
             ),
@@ -2170,8 +2244,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                     ),
                   ),
                 ),
-                const SizedBox(
-                    width: 8),
+                const SizedBox(width: 7),
                 Expanded(
                   child:
                       _buildStatusButton(
@@ -2212,15 +2285,20 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
       height: tamanho,
       decoration:
           BoxDecoration(
-        color: isPresente
-            ? const Color(
-                0xFFDCFCE7)
-            : const Color(
-                0xFFF1F5F9),
-        borderRadius:
-            BorderRadius.circular(
-          12,
+        gradient:
+            LinearGradient(
+          colors: isPresente
+              ? const [
+                  Color(0xFFDCFCE7),
+                  Color(0xFFBBF7D0),
+                ]
+              : const [
+                  Color(0xFFF1F5F9),
+                  Color(0xFFE2E8F0),
+                ],
         ),
+        borderRadius:
+            BorderRadius.circular(13),
       ),
       child: Center(
         child: Text(
@@ -2230,12 +2308,11 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
           style:
               TextStyle(
             color: isPresente
-                ? const Color(
-                    0xFF15803D)
-                : const Color(
-                    0xFF475569),
+                ? const Color(0xFF15803D)
+                : const Color(0xFF475569),
             fontWeight:
-                FontWeight.w800,
+                FontWeight.w900,
+            fontSize: 13,
           ),
         ),
       ),
@@ -2249,6 +2326,9 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
   Widget _buildInfoAluno(
     dynamic aluno,
   ) {
+    final possuiRosto =
+        aluno.temRosto;
+
     return Column(
       crossAxisAlignment:
           CrossAxisAlignment.start,
@@ -2261,7 +2341,7 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
           style:
               const TextStyle(
             fontWeight:
-                FontWeight.w700,
+FontWeight.w700,
             fontSize: 14,
             color:
                 Color(0xFF1E293B),
@@ -2270,20 +2350,51 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
         const SizedBox(height: 4),
         Text(
           'Matrícula: ${aluno.idAluno}',
-          style: TextStyle(
+          style: const TextStyle(
             color:
-                Colors.grey.shade500,
-            fontSize: 12,
+                Color(0xFF94A3B8),
+            fontSize: 11,
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          aluno.temRosto ? 'Rosto cadastrado' :
-              (FaceTestConfig.ativo && aluno.temRostoTeste ? 'Foto de teste cadastrada' : 'Rosto pendente'),
-          style: TextStyle(
-            fontSize: 11,
-            color: aluno.temRosto ? const Color(0xFF15803D) : const Color(0xFFB45309),
-          ),
+        const SizedBox(height: 5),
+        Row(
+          mainAxisSize:
+              MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration:
+                  BoxDecoration(
+                color: possuiRosto
+                    ? const Color(0xFF16A34A)
+                    : const Color(0xFFF59E0B),
+                shape:
+                    BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                possuiRosto
+                    ? 'Rosto cadastrado'
+                    : (FaceTestConfig.ativo &&
+                            aluno.temRostoTeste
+                        ? 'Foto de teste cadastrada'
+                        : 'Rosto pendente'),
+                overflow:
+                    TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight:
+                      FontWeight.w600,
+                  color: possuiRosto
+                      ? const Color(0xFF15803D)
+                      : const Color(0xFFB45309),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -2316,18 +2427,17 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
       child: AnimatedContainer(
         duration:
             const Duration(
-          milliseconds: 150,
+          milliseconds: 160,
         ),
         padding:
             const EdgeInsets.symmetric(
-          vertical: 10,
-          horizontal: 8,
+          vertical: 9,
+          horizontal: 7,
         ),
         decoration:
             BoxDecoration(
           color: !habilitado
-              ? const Color(
-                  0xFFF1F5F9)
+              ? const Color(0xFFF1F5F9)
               : ativo
                   ? fundo
                   : Colors.white,
@@ -2336,14 +2446,12 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
           border:
               Border.all(
             color: !habilitado
-                ? const Color(
-                    0xFFE2E8F0)
+                ? const Color(0xFFE2E8F0)
                 : ativo
-                    ? cor
-                    : const Color(
-                        0xFFE2E8F0),
+                    ? cor.withOpacity(.7)
+                    : const Color(0xFFE2E8F0),
             width:
-                ativo ? 1.4 : 1,
+                ativo ? 1.3 : 1,
           ),
         ),
         child: Row(
@@ -2352,11 +2460,9 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
           children: [
             Icon(
               verde
-                  ? Icons
-                      .check_circle_outline
-                  : Icons
-                      .cancel_outlined,
-              size: 15,
+                  ? Icons.check_circle_outline
+                  : Icons.cancel_outlined,
+              size: 14,
               color: !habilitado
                   ? Colors.grey.shade400
                   : ativo
@@ -2370,9 +2476,9 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
                 overflow:
                     TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10.5,
                   fontWeight:
-                      FontWeight.bold,
+                      FontWeight.w800,
                   color: !habilitado
                       ? Colors.grey.shade400
                       : ativo
@@ -2388,95 +2494,53 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
   }
 
   // ============================================================
-  // CARD ESTATÍSTICA
+  // TOTEM
   // ============================================================
 
-  Widget _buildStatCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color valueColor,
-    double? progress,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding:
-          const EdgeInsets.all(16),
-      decoration:
-          BoxDecoration(
+  Widget _buildTotemButton(
+    FrequenciaController controller,
+  ) {
+    final dataFutura =
+        _dataEhFutura(
+      controller.dataSelecionada,
+    );
+
+    final podeRegistrar =
+        controller.turmaSelecionada != null &&
+        controller.turmaSelecionada! > 0 &&
+        controller.alunos.isNotEmpty &&
+        !dataFutura &&
+        !_salvandoLote;
+
+    return FloatingActionButton.extended(
+      backgroundColor:
+          podeRegistrar
+              ? SifeTheme.primaryRed
+              : Colors.grey.shade400,
+      elevation: 5,
+      icon: const FaIcon(
+        FontAwesomeIcons.expand,
         color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(16),
-        border: Border.all(
-          color:
-              const Color(0xFFE8EBEF),
+        size: 14,
+      ),
+      label: Text(
+        _salvandoLote
+            ? 'Salvando...'
+            : 'Ativar Modo Totem',
+        style:
+            const TextStyle(
+          color: Colors.white,
+          fontWeight:
+              FontWeight.w800,
+          fontSize: 12,
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration:
-                BoxDecoration(
-              color:
-                  valueColor.withOpacity(.09),
-              borderRadius:
-                  BorderRadius.circular(11),
-            ),
-            child: Icon(
-              icon,
-              color: valueColor,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight:
-                        FontWeight.bold,
-                    color:
-                        Colors.grey.shade500,
-                  ),
-                ),
-                const SizedBox(
-                    height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 23,
-                    fontWeight:
-                        FontWeight.w900,
-                    color: valueColor,
-                  ),
-                ),
-                if (progress != null)
-                  Padding(
-                    padding:
-                        const EdgeInsets.only(
-                      top: 6,
-                    ),
-                    child:
-                        LinearProgressIndicator(
-                      value: progress.clamp(
-                        0.0,
-                        1.0,
-                      ),
-                      minHeight: 5,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      onPressed:
+          podeRegistrar
+              ? () => _abrirTotem(
+                    controller,
+                  )
+              : null,
     );
   }
 }
