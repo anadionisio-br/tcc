@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:io';
+import 'package:flutter/services.dart';
+import '../config/face_test_config.dart';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -35,6 +36,7 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
 
   Timer? _resetTimer;
 
+  bool _carregandoChamada = true;
   bool _cameraInicializada = false;
   bool _erroCamera = false;
   bool _isProcessingFrame = false;
@@ -83,8 +85,13 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
       }
 
       if (!mounted) return;
-
-      await _inicializarCameraComMLKit();
+      setState(() => _carregandoChamada = false);
+      if (controller.erroChamada != null || controller.turmaSelecionada == null) {
+        setState(() => _procurandoRosto = false);
+        _mostrarFalha(controller.erroChamada ?? 'Selecione uma turma antes de abrir o totem.');
+        return;
+      }
+      if (!kIsWeb) await _inicializarCameraComMLKit();
     } catch (e, stackTrace) {
       debugPrint('Erro na inicialização do totem: $e');
       debugPrint('$stackTrace');
@@ -92,6 +99,7 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
       if (mounted) {
         setState(() {
           _erroCamera = true;
+          _carregandoChamada = false;
         });
       }
     }
@@ -215,7 +223,7 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
 
     final camera = _cameraController;
 
-    if (camera == null || !camera.value.isInitialized) {
+    if (!FaceTestConfig.ativo && (camera == null || !camera.value.isInitialized)) {
       return;
     }
 
@@ -241,31 +249,23 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
     }
 
     try {
-      // Paramos o stream antes de tirar a foto.
-      await _pararImageStream();
-
-      final foto = await camera.takePicture();
-
-      final bytes = await File(foto.path).readAsBytes();
-
-      if (bytes.isEmpty) {
-        _mostrarFalha('Não foi possível capturar a imagem.');
-
-        return;
+      Map<String, dynamic> resultado;
+      if (FaceTestConfig.ativo) {
+        final bytes = (await rootBundle.load(FaceTestConfig.foto)).buffer.asUint8List();
+        resultado = await ApiService().enviarFotoTeste(bytes: bytes, idTurma: turmaSelecionada);
+      } else {
+        await _pararImageStream();
+        final foto = await camera!.takePicture();
+        final bytes = await foto.readAsBytes();
+        final embedding = await _faceService.extrairRosto(bytes);
+        if (embedding == null || embedding.isEmpty) {
+          _mostrarFalha('Não foi possível identificar o rosto.');
+          return;
+        }
+        resultado = await ApiService().reconhecerRosto(
+          embedding: embedding, idTurma: turmaSelecionada,
+        );
       }
-
-      final embedding = await _faceService.extrairRosto(bytes);
-
-      if (embedding == null || embedding.isEmpty) {
-        _mostrarFalha('Não foi possível identificar o rosto.');
-
-        return;
-      }
-
-      final resultado = await ApiService().reconhecerRosto(
-        embedding: embedding,
-        idTurma: turmaSelecionada,
-      );
 
       final reconhecido = resultado['reconhecido'] == true;
 
@@ -301,6 +301,16 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
         return;
       }
 
+      final indice = frequenciaController.alunos.indexWhere((a) => a.idAluno == idAluno);
+      if (indice < 0) {
+        _mostrarFalha('Este aluno não pertence à chamada atual.');
+        return;
+      }
+      if (frequenciaController.alunos[indice].status == 'Presente') {
+        _mostrarJaRegistrado(nomeAluno, idAluno);
+        return;
+      }
+
       // Evita registrar novamente enquanto o totem está em uso.
       final jaRegistradoRecentemente =
           _alunosRegistradosRecentemente.contains(idAluno);
@@ -316,6 +326,8 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
 
       final sucesso = await frequenciaController.registrarPresencaFacial(
         idAluno,
+        testeWeb: FaceTestConfig.ativo,
+        viaTotem: true,
       );
 
       if (!sucesso) {
@@ -341,7 +353,7 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
       debugPrint('$stackTrace');
 
       _mostrarFalha(
-        'Erro ao realizar reconhecimento facial.',
+        e is ApiException ? e.mensagemAmigavel : 'Erro ao realizar reconhecimento facial.',
       );
     } finally {
       _processandoReconhecimento = false;
@@ -392,7 +404,7 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
           _procurandoRosto = true;
         });
 
-        await _iniciarImageStream();
+        if (!kIsWeb) await _iniciarImageStream();
       },
     );
   }
@@ -503,7 +515,7 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
 
     _cameraController?.dispose();
 
-    _faceDetector.close();
+    if (!kIsWeb) _faceDetector.close();
 
     super.dispose();
   }
@@ -571,7 +583,7 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
           const SizedBox(width: 9),
           Text(
             ativo
-                ? 'DETECTOR ATIVO'
+                ? (FaceTestConfig.ativo ? 'SIMULAÇÃO WEB' : 'DETECTOR ATIVO')
                 : 'PROCESSANDO ROSTO...',
             style: const TextStyle(
               color: Colors.white,
@@ -592,7 +604,12 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
   Widget _buildCamera() {
     Widget conteudo;
 
-    if (_erroCamera) {
+    if (FaceTestConfig.ativo) {
+      conteudo = ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Image.asset(FaceTestConfig.foto, fit: BoxFit.cover),
+      );
+    } else if (_erroCamera) {
       conteudo = const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -824,7 +841,7 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
           ),
           const SizedBox(height: 20),
           const Text(
-            'Posicione seu rosto dentro do círculo',
+            FaceTestConfig.ativo ? 'Clique em TESTAR FOTO NO TOTEM' : 'Posicione seu rosto dentro do círculo',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white,
@@ -835,7 +852,7 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            'O reconhecimento é automático',
+            FaceTestConfig.ativo ? 'Cadastre a foto em um aluno desta turma primeiro' : 'O reconhecimento é automático',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white.withOpacity(0.5),
@@ -963,10 +980,31 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
                         MainAxisAlignment.center,
                     children: [
                       _buildStatusPill(),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Turma ${context.watch<FrequenciaController>().turmaSelecionada ?? "—"} • '
+                        '${context.watch<FrequenciaController>().dataFormatada}',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
 
                       const SizedBox(height: 42),
 
                       _buildCamera(),
+                      if (FaceTestConfig.ativo) ...[
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Foto de teste • simulação, sem biometria real.\nA presença será salva na chamada selecionada.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: _carregandoChamada || !_procurandoRosto || _processandoReconhecimento
+                              ? null : _identificarERegistrarAluno,
+                          icon: const Icon(Icons.face),
+                          label: const Text('TESTAR FOTO NO TOTEM'),
+                        ),
+                      ],
 
                       const SizedBox(height: 42),
 

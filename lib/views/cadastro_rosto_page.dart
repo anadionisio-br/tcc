@@ -1,4 +1,6 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import '../config/face_test_config.dart';
 
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
@@ -28,6 +30,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
   bool _carregandoAlunos = false;
 
   XFile? _fotoCapturada;
+  Uint8List? _fotoBytes;
 
   Map<String, dynamic>? _alunoSelecionado;
 
@@ -69,7 +72,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
 
   Future<void> _inicializarTela() async {
     // A câmera começa imediatamente.
-    await _inicializarCamera();
+    if (!kIsWeb) await _inicializarCamera();
 
     // Os alunos carregam separadamente.
     if (mounted) {
@@ -282,6 +285,20 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
   // ============================================================
 
   Future<void> _capturarEVerificarRosto() async {
+    if (FaceTestConfig.ativo) {
+      try {
+        final bytes = (await rootBundle.load(FaceTestConfig.foto)).buffer.asUint8List();
+        if (!mounted || _alunoSelecionado == null) return;
+        setState(() {
+          _fotoBytes = bytes;
+          _fotoCapturada = XFile.fromData(bytes, name: 'rosto-teste.png', mimeType: 'image/png');
+          _rostoDetectado = true;
+        });
+      } catch (_) {
+        _exibirSnackBar('Não foi possível carregar a foto de teste.', isErro: true);
+      }
+      return;
+    }
     if (_alunoSelecionado == null) {
       _exibirSnackBar('Primeiro selecione um aluno.', isErro: true);
       return;
@@ -321,9 +338,11 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
         return;
       }
 
+      final bytes = await foto.readAsBytes();
       if (!mounted) return;
 
       setState(() {
+        _fotoBytes = bytes;
         _fotoCapturada = foto;
         _rostoDetectado = true;
       });
@@ -410,81 +429,20 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
       );
     }
 
-    // ============================================================
-    // 2. GERAR EMBEDDING FACIAL
-    // ============================================================
-
-    debugPrint(
-      'Gerando embedding facial...',
-    );
-
-    final embedding =
-        await _faceRecognitionService.extrairRosto(
-      imageBytes,
-    );
-
-    if (embedding == null ||
-        embedding.isEmpty) {
-      _exibirSnackBar(
-        'Não foi possível gerar a biometria facial. '
-        'Tire outra foto olhando diretamente para a câmera.',
-        isErro: true,
+    if (FaceTestConfig.ativo) {
+      await _apiService.enviarFotoTeste(bytes: imageBytes, idAluno: idAluno);
+    } else {
+      final embedding = await _faceRecognitionService.extrairRosto(imageBytes);
+      if (embedding == null || embedding.isEmpty) {
+        throw Exception('Não foi possível gerar a biometria. Tire outra foto de frente.');
+      }
+      final salvo = await _apiService.cadastrarRosto(
+        idAluno: idAluno, embedding: embedding, caminhoFoto: _fotoCapturada!.path,
       );
-      return;
+      if (!salvo) throw Exception('Não foi possível salvar o rosto.');
     }
-
-    debugPrint(
-      'EMBEDDING GERADO: ${embedding.length} valores',
-    );
-
-    // ============================================================
-    // 3. SALVAR A FOTO
-    // ============================================================
-
-    debugPrint(
-      'Enviando foto para o Laravel...',
-    );
-
-    final fotoSalva =
-        await _apiService.cadastrarAlunoComFoto(
-      idAluno: idAluno,
-      nome: nomeAluno,
-      caminhoFoto: _fotoCapturada!.path,
-    );
-
-    if (!fotoSalva) {
-      throw Exception(
-        'O servidor não conseguiu salvar a foto.',
-      );
-    }
-
-    debugPrint(
-      'Foto salva com sucesso.',
-    );
-
-    // ============================================================
-    // 4. SALVAR O EMBEDDING
-    // ============================================================
-
-    debugPrint(
-      'Enviando embedding para o Laravel...',
-    );
-
-    final embeddingSalvo =
-        await _apiService.cadastrarRosto(
-      idAluno: idAluno,
-      embedding: embedding,
-    );
-
-    if (!embeddingSalvo) {
-      throw Exception(
-        'O servidor não conseguiu salvar a biometria facial.',
-      );
-    }
-
-    debugPrint(
-      'Embedding salvo com sucesso.',
-    );
+    if (!mounted) return;
+    await context.read<FrequenciaController>().buscarChamada();
 
     // ============================================================
     // 5. FINALIZAR
@@ -493,7 +451,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     if (!mounted) return;
 
     _exibirSnackBar(
-      'Rosto de $nomeAluno cadastrado com sucesso!',
+      FaceTestConfig.ativo ? 'Foto de teste associada a $nomeAluno.' : 'Rosto de $nomeAluno cadastrado com sucesso!',
     );
 
     await Future.delayed(
@@ -581,7 +539,22 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
   // SELECIONAR ALUNO
   // ============================================================
 
+  Future<void> _removerTeste(Map<String, dynamic> aluno) async {
+    setState(() => _salvando = true);
+    try {
+      await _apiService.removerFotoTeste(int.parse(aluno['id_aluno'].toString()));
+      if (!mounted) return;
+      await context.read<FrequenciaController>().buscarChamada();
+    } on ApiException catch (e) {
+      if (mounted) _exibirSnackBar(e.mensagemAmigavel, isErro: true);
+    } finally {
+      if (mounted) setState(() => _salvando = false);
+    }
+  }
+
   void _selecionarAluno(Map<String, dynamic> aluno) {
+    if (_salvando || aluno['tem_rosto'] == true ||
+        (FaceTestConfig.ativo && aluno['tem_rosto_teste'] == true)) return;
     setState(() {
       _alunoSelecionado = aluno;
       _fotoCapturada = null;
@@ -608,7 +581,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
         try {
           final dynamic a = aluno;
 
-          lista.add({'id_aluno': a.idAluno, 'nome': a.nome});
+          lista.add(Map<String, dynamic>.from(a.toJson()));
         } catch (_) {}
       }
     }
@@ -784,7 +757,9 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
 
     Widget conteudo;
 
-    if (_inicializandoCamera) {
+    if (FaceTestConfig.ativo) {
+      conteudo = Image.asset(FaceTestConfig.foto, fit: BoxFit.cover);
+    } else if (_inicializandoCamera) {
       conteudo = const Center(
         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.4),
       );
@@ -829,7 +804,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
       conteudo = ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: _fotoCapturada != null
-            ? Image.file(File(_fotoCapturada!.path), fit: BoxFit.cover)
+            ? Image.memory(_fotoBytes!, fit: BoxFit.cover)
             : FittedBox(
                 fit: BoxFit.cover,
                 clipBehavior: Clip.hardEdge,
@@ -951,7 +926,9 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
                 const SizedBox(height: 6),
 
                 const Text(
-                  'Selecione o aluno e capture uma foto nítida do rosto dele.',
+                  FaceTestConfig.ativo
+                      ? 'Simulação web: associe a foto de teste a um aluno sem cadastro. A foto testa o fluxo da chamada; o rosto real será cadastrado no APK.'
+                      : 'Cadastre apenas os alunos sem rosto. Quem já possui cadastro pode usar o totem.',
                   style: TextStyle(
                     color: _textMuted,
                     fontSize: 14,
@@ -1144,7 +1121,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
                                   idSelecionado.toString() == id.toString();
 
                               return InkWell(
-                                onTap: () => _selecionarAluno(aluno),
+                                onTap: _salvando || aluno['tem_rosto'] == true || (FaceTestConfig.ativo && aluno['tem_rosto_teste'] == true) ? null : () => _selecionarAluno(aluno),
                                 borderRadius: BorderRadius.circular(12),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 150),
@@ -1198,7 +1175,14 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
                                           ),
                                         ),
                                       ),
-                                      if (selecionado)
+                                      if (aluno['tem_rosto'] == true)
+                                        const Text('Rosto cadastrado', style: TextStyle(color: _success, fontSize: 11))
+                                      else if (FaceTestConfig.ativo && aluno['tem_rosto_teste'] == true)
+                                        TextButton(
+                                          onPressed: _salvando ? null : () => _removerTeste(aluno),
+                                          child: const Text('Remover teste'),
+                                        )
+                                      else if (selecionado)
                                         const Icon(
                                           Icons.check_circle_rounded,
                                           color: _success,
@@ -1231,7 +1215,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
                     children: [
                       _buildSectionHeader(
                         numero: 2,
-                        titulo: 'Capture o rosto',
+                        titulo: FaceTestConfig.ativo ? 'Foto de teste — simulação web' : 'Capture o rosto',
                         icone: Icons.face_retouching_natural_rounded,
                         concluido: etapaRostoConcluida,
                       ),
@@ -1268,8 +1252,8 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
                             const SizedBox(width: 6),
                             Text(
                               etapaRostoConcluida
-                                  ? 'Rosto detectado com sucesso'
-                                  : 'Posicione o rosto dentro do círculo',
+                                  ? (FaceTestConfig.ativo ? 'Foto de teste selecionada' : 'Rosto detectado com sucesso')
+                                  : (FaceTestConfig.ativo ? 'Associe a foto a um único aluno' : 'Posicione o rosto dentro do círculo'),
                               style: TextStyle(
                                 color: etapaRostoConcluida
                                     ? _success
@@ -1292,10 +1276,10 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
                 // ==============================================
                 if (_fotoCapturada == null)
                   _buildBotaoPrimario(
-                    label: 'CAPTURAR ROSTO',
+                    label: FaceTestConfig.ativo ? 'USAR FOTO DE TESTE' : 'CAPTURAR ROSTO',
                     icone: Icons.camera_alt_rounded,
                     habilitado:
-                        _alunoSelecionado != null && _cameraInicializada,
+                        _alunoSelecionado != null && (_cameraInicializada || FaceTestConfig.ativo),
                     onPressed: _capturarEVerificarRosto,
                   )
                 else
@@ -1424,7 +1408,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
   @override
   void dispose() {
     _cameraController?.dispose();
-    _faceDetector.close();
+    if (!kIsWeb) _faceDetector.close();
     _buscaController.dispose();
 
     super.dispose();

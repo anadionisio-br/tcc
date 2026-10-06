@@ -177,38 +177,70 @@ class ApiService {
     }
   }
 
-  Future<bool> cadastrarRosto({
-  required int idAluno,
-  required List<double> embedding,
-}) async {
-  try {
-    final response = await _dio.post(
-      '/reconhecimento/cadastrar',
-      data: {
-        'id_aluno': idAluno,
-        'embedding': embedding,
-      },
-    );
-
-    return response.statusCode == 200 &&
-        response.data['success'] == true;
-  } on DioException catch (e) {
-    throw ApiException.fromDioException(
-      e,
-      contexto: 'cadastrar rosto',
-    );
+  Future<Map<String, dynamic>> enviarFotoTeste({
+    required List<int> bytes,
+    int? idAluno,
+    int? idTurma,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/reconhecimento/teste-web/${idAluno != null ? 'cadastrar' : 'reconhecer'}',
+        data: FormData.fromMap({
+          if (idAluno != null) 'id_aluno': idAluno,
+          if (idTurma != null) 'id_turma': idTurma,
+          'foto': MultipartFile.fromBytes(bytes, filename: 'rosto-teste.png'),
+        }),
+        options: Options(contentType: 'multipart/form-data'),
+      );
+      return Map<String, dynamic>.from(response.data);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e, contexto: 'foto de teste');
+    }
   }
-}
+
+  Future<void> removerFotoTeste(int idAluno) async {
+    try {
+      await _dio.delete('/reconhecimento/teste-web/$idAluno');
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e, contexto: 'remover foto de teste');
+    }
+  }
+
+  Future<bool> cadastrarRosto({
+    required int idAluno,
+    required List<double> embedding,
+    required String caminhoFoto,
+  }) async {
+    try {
+      final dados = FormData.fromMap({
+        'id_aluno': idAluno,
+        'substituir': '0',
+        'foto': await MultipartFile.fromFile(caminhoFoto),
+        for (var i = 0; i < embedding.length; i++)
+          'embedding[$i]': embedding[i].toString(),
+      });
+      final response = await _dio.post(
+        '/reconhecimento/cadastrar',
+        data: dados,
+        options: Options(contentType: 'multipart/form-data'),
+      );
+      return response.statusCode == 200 && response.data['success'] == true;
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e, contexto: 'cadastrar rosto');
+    }
+  }
 
 Future<Map<String, dynamic>> reconhecerRosto({
   required List<double> embedding,
   int? idTurma,
+  int? idAluno,
 }) async {
   try {
     final response = await _dio.post(
       '/reconhecimento/reconhecer',
       data: {
         'embedding': embedding,
+        if (idAluno != null) 'id_aluno': idAluno,
         if (idTurma != null)
           'id_turma': idTurma,
       },

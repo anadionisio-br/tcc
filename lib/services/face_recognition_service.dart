@@ -35,7 +35,11 @@ class FaceRecognitionService {
     final features =
         await FacePlugin.extractFeatures(imageBytes);
 
-    if (features.isEmpty) {
+    if (features.length != 1 ||
+        features.first.length < 64 ||
+        features.first.length > 1024 ||
+        features.first.any((value) => !value.isFinite) ||
+        features.first.every((value) => value == 0)) {
       return null;
     }
 

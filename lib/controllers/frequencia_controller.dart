@@ -399,7 +399,7 @@ class FrequenciaController extends ChangeNotifier {
   // REGISTRAR PRESENÇA FACIAL
   // ============================================================
 
-  Future<bool> registrarPresencaFacial(int idAluno) async {
+  Future<bool> registrarPresencaFacial(int idAluno, {bool testeWeb = false, bool viaTotem = false}) async {
   if (turmaSelecionada == null || turmaSelecionada! <= 0) {
     debugPrint('ERRO: turma não selecionada');
     return false;
@@ -410,12 +410,16 @@ class FrequenciaController extends ChangeNotifier {
     return false;
   }
 
+  final index = alunos.indexWhere((aluno) => aluno.idAluno == idAluno);
+  if (index < 0) return false;
+
   try {
     final dados = {
       'id_aluno': idAluno,
       'id_turma': turmaSelecionada,
       'data': dataFormatada,
       'status': 'Presente',
+      'origem': testeWeb ? 'teste_web' : (viaTotem ? 'totem' : 'aplicativo'),
     };
 
     debugPrint('====================================');
@@ -434,8 +438,10 @@ class FrequenciaController extends ChangeNotifier {
     debugPrint('RESPOSTA: ${response.data}');
     debugPrint('====================================');
 
-    return response.statusCode == 200 ||
-        response.statusCode == 201;
+    final salvo = (response.statusCode == 200 || response.statusCode == 201) &&
+        response.data['success'] == true;
+    if (salvo) definirStatusLocal(idAluno, 'Presente');
+    return salvo;
   } on DioException catch (e) {
     debugPrint('====================================');
     debugPrint('ERRO POST /frequencia');

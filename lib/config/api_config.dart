@@ -23,7 +23,7 @@ class ApiConfig {
   ApiConfig._();
 
   // 🔧 TROQUE AQUI conforme o cenário de teste (ver instruções acima)
-  static const String _ipLocal = '10.141.131.98';
+  static const String _ipLocal = '10.141.129.14';
   static const String _porta = '8000';
 
   /// Permite sobrescrever o IP em tempo de build sem editar código, ex:

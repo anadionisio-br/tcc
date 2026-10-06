@@ -3,6 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 
 import '../config/theme.dart';
+import '../config/face_test_config.dart';
 import '../controllers/frequencia_controller.dart';
 import 'totem_facial_page.dart';
 import 'cadastro_rosto_page.dart';
@@ -2273,6 +2274,15 @@ class _FrequenciaPageState extends State<FrequenciaPage> {
             color:
                 Colors.grey.shade500,
             fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          aluno.temRosto ? 'Rosto cadastrado' :
+              (FaceTestConfig.ativo && aluno.temRostoTeste ? 'Foto de teste cadastrada' : 'Rosto pendente'),
+          style: TextStyle(
+            fontSize: 11,
+            color: aluno.temRosto ? const Color(0xFF15803D) : const Color(0xFFB45309),
           ),
         ),
       ],
