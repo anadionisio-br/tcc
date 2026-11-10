@@ -13,6 +13,7 @@ import '../config/theme.dart';
 import '../controllers/frequencia_controller.dart';
 import '../services/api_service.dart';
 import '../services/face_recognition_service.dart';
+import '../widgets/camera_preview_cover.dart';
 
 class TotemFacialPage extends StatefulWidget {
   const TotemFacialPage({super.key});
@@ -715,22 +716,9 @@ class _TotemFacialPageState extends State<TotemFacialPage> {
     } else if (_cameraInicializada &&
         _cameraController != null &&
         _cameraController!.value.isInitialized) {
-      final preview =
-          _cameraController!.value.previewSize;
-
-      conteudo = preview == null
-          ? CameraPreview(_cameraController!)
-          : FittedBox(
-              fit: BoxFit.cover,
-              clipBehavior: Clip.hardEdge,
-              child: SizedBox(
-                width: preview.height,
-                height: preview.width,
-                child: CameraPreview(
-                  _cameraController!,
-                ),
-              ),
-            );
+      conteudo = CameraPreviewCover(
+        controller: _cameraController!,
+      );
     } else {
       conteudo = const Center(
         child: CircularProgressIndicator(

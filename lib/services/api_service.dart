@@ -28,7 +28,9 @@ class ApiService {
           if (_token != null) {
             options.headers['Authorization'] = 'Bearer $_token';
           }
-          debugPrint('--> [${options.method}] ${options.baseUrl}${options.path}');
+          debugPrint(
+            '--> [${options.method}] ${options.baseUrl}${options.path}',
+          );
           return handler.next(options);
         },
         onError: (DioException e, handler) {
@@ -59,13 +61,15 @@ class ApiService {
   // ---------------------------------------------------------------------
   /// Faz login contra o Laravel. Lança [ApiException] em caso de erro,
   /// com a mensagem que o backend retornou (quando disponível).
-  Future<Map<String, dynamic>> loginProfessor(String email, String senha) async {
+  Future<Map<String, dynamic>> loginProfessor(
+    String email,
+    String senha,
+  ) async {
     try {
-      final response = await _dio.post('/login', data: {
-        'email': email,
-        'password': senha,
-        'role': 'professor',
-      });
+      final response = await _dio.post(
+        '/login',
+        data: {'email': email, 'password': senha, 'role': 'professor'},
+      );
 
       final data = response.data;
       if (data is Map<String, dynamic>) {
@@ -91,7 +95,12 @@ class ApiService {
       if (data is List) {
         dados = data;
       } else if (data is Map) {
-        dados = data['turmas'] ?? data['data'] ?? data['result'] ?? data['rows'] ?? [];
+        dados =
+            data['turmas'] ??
+            data['data'] ??
+            data['result'] ??
+            data['rows'] ??
+            [];
       } else {
         dados = [];
       }
@@ -115,7 +124,10 @@ class ApiService {
       if (data is List) return data;
       return [];
     } on DioException catch (e) {
-      throw ApiException.fromDioException(e, contexto: 'listar alunos da turma');
+      throw ApiException.fromDioException(
+        e,
+        contexto: 'listar alunos da turma',
+      );
     }
   }
 
@@ -129,14 +141,17 @@ class ApiService {
     String status = 'Presente',
   }) async {
     try {
-      final response = await _dio.post('/frequencia', data: {
-        'id_aluno': idAluno,
-        'aluno_id': idAluno,
-        'id_turma': idTurma,
-        'turma_id': idTurma,
-        'data': data,
-        'status': status,
-      });
+      final response = await _dio.post(
+        '/frequencia',
+        data: {
+          'id_aluno': idAluno,
+          'aluno_id': idAluno,
+          'id_turma': idTurma,
+          'turma_id': idTurma,
+          'data': data,
+          'status': status,
+        },
+      );
       return response.statusCode == 200 || response.statusCode == 201;
     } on DioException catch (e) {
       throw ApiException.fromDioException(e, contexto: 'registrar presença');
@@ -151,26 +166,35 @@ class ApiService {
     required List<Map<String, dynamic>> frequencias,
   }) async {
     try {
-      final response = await _dio.post('/frequencia', data: {
-        'id_turma': idTurma,
-        'frequencias': frequencias,
-      });
+      final response = await _dio.post(
+        '/frequencia',
+        data: {'id_turma': idTurma, 'frequencias': frequencias},
+      );
       return response.statusCode == 200 || response.statusCode == 201;
     } on DioException catch (e) {
-      throw ApiException.fromDioException(e, contexto: 'registrar chamada em lote');
+      throw ApiException.fromDioException(
+        e,
+        contexto: 'registrar chamada em lote',
+      );
     }
   }
 
   // ---------------------------------------------------------------------
   // 6. BUSCAR CHAMADA (lista de alunos + status do dia)
   // ---------------------------------------------------------------------
-  Future<dynamic> buscarChamada({required int idTurma, required String data}) async {
+  Future<dynamic> buscarChamada({
+    required int idTurma,
+    required String data,
+  }) async {
     try {
-      final response = await _dio.get('/frequencia', queryParameters: {
-        'turma_id': idTurma,
-        'id_turma': idTurma,
-        'data': data,
-      });
+      final response = await _dio.get(
+        '/frequencia',
+        queryParameters: {
+          'turma_id': idTurma,
+          'id_turma': idTurma,
+          'data': data,
+        },
+      );
       return response.data;
     } on DioException catch (e) {
       throw ApiException.fromDioException(e, contexto: 'buscar chamada');
@@ -206,6 +230,15 @@ class ApiService {
     }
   }
 
+  /// Exclui o rosto cadastrado do aluno para permitir um novo cadastro.
+  Future<void> removerRosto(int idAluno) async {
+    try {
+      await _dio.delete('/reconhecimento/$idAluno');
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e, contexto: 'excluir rosto');
+    }
+  }
+
   Future<bool> cadastrarRosto({
     required int idAluno,
     required List<double> embedding,
@@ -230,74 +263,64 @@ class ApiService {
     }
   }
 
-Future<Map<String, dynamic>> reconhecerRosto({
-  required List<double> embedding,
-  int? idTurma,
-  int? idAluno,
-}) async {
-  try {
-    final response = await _dio.post(
-      '/reconhecimento/reconhecer',
-      data: {
-        'embedding': embedding,
-        if (idAluno != null) 'id_aluno': idAluno,
-        if (idTurma != null)
-          'id_turma': idTurma,
-      },
-    );
-
-    if (response.data is! Map) {
-      throw ApiException(
-        mensagemAmigavel:
-            'Resposta inválida do reconhecimento facial.',
-        contexto: 'reconhecer rosto',
-        statusCode: response.statusCode,
-        detalhesBackend: response.data,
+  Future<Map<String, dynamic>> reconhecerRosto({
+    required List<double> embedding,
+    int? idTurma,
+    int? idAluno,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/reconhecimento/reconhecer',
+        data: {
+          'embedding': embedding,
+          if (idAluno != null) 'id_aluno': idAluno,
+          if (idTurma != null) 'id_turma': idTurma,
+        },
       );
-    }
 
-    return Map<String, dynamic>.from(
-      response.data,
-    );
-  } on DioException catch (e) {
-    throw ApiException.fromDioException(
-      e,
-      contexto: 'reconhecer rosto',
-    );
+      if (response.data is! Map) {
+        throw ApiException(
+          mensagemAmigavel: 'Resposta inválida do reconhecimento facial.',
+          contexto: 'reconhecer rosto',
+          statusCode: response.statusCode,
+          detalhesBackend: response.data,
+        );
+      }
+
+      return Map<String, dynamic>.from(response.data);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e, contexto: 'reconhecer rosto');
+    }
   }
-}
+
   // ---------------------------------------------------------------------
   // 7. CADASTRO DE ALUNO COM FOTO (biometria facial)
   // ---------------------------------------------------------------------
-Future<bool> cadastrarAlunoComFoto({
-  required int idAluno,
-  required String nome,
-  required String caminhoFoto,
-}) async {
-  try {
-    final formData = FormData.fromMap({
-      'id_aluno': idAluno,
-      'nome': nome,
-      'foto': await MultipartFile.fromFile(
-        caminhoFoto,
-        filename: 'rosto_aluno.jpg',
-      ),
-    });
+  Future<bool> cadastrarAlunoComFoto({
+    required int idAluno,
+    required String nome,
+    required String caminhoFoto,
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'id_aluno': idAluno,
+        'nome': nome,
+        'foto': await MultipartFile.fromFile(
+          caminhoFoto,
+          filename: 'rosto_aluno.jpg',
+        ),
+      });
 
-    final response = await _dio.post(
-      '/cadastrar-com-foto',
-      data: formData,
-    );
+      final response = await _dio.post('/cadastrar-com-foto', data: formData);
 
-    return response.statusCode == 200 ||
-        response.statusCode == 201;
-  } on DioException catch (e) {
-    throw ApiException.fromDioException(
-      e,
-      contexto: 'cadastrar aluno com foto',
-    );
+      return response.statusCode == 200 || response.statusCode == 201;
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(
+        e,
+        contexto: 'cadastrar aluno com foto',
+      );
+    }
   }
-}
 }
 
 /// Exceção padronizada, com mensagem amigável pronta para exibir num
@@ -315,7 +338,10 @@ class ApiException implements Exception {
     this.detalhesBackend,
   });
 
-  factory ApiException.fromDioException(DioException e, {required String contexto}) {
+  factory ApiException.fromDioException(
+    DioException e, {
+    required String contexto,
+  }) {
     final status = e.response?.statusCode;
     String msg;
 
@@ -329,11 +355,13 @@ class ApiException implements Exception {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
-        msg = 'O servidor demorou para responder. Verifique se a API está no ar e '
+        msg =
+            'O servidor demorou para responder. Verifique se a API está no ar e '
             'se o celular está na mesma rede Wi-Fi do servidor.';
         break;
       case DioExceptionType.connectionError:
-        msg = 'Não foi possível conectar à API. Verifique o IP configurado em '
+        msg =
+            'Não foi possível conectar à API. Verifique o IP configurado em '
             'api_config.dart, se o Laravel está rodando com --host=0.0.0.0, e se '
             'não há bloqueio de tráfego HTTP (cleartext) no Android/iOS.';
         break;
@@ -346,7 +374,8 @@ class ApiException implements Exception {
         } else if (status == 404) {
           msg = 'Rota não encontrada na API (verifique as rotas do Laravel).';
         } else if (status != null && status >= 500) {
-          msg = 'Erro interno no servidor Laravel (verifique os logs em storage/logs).';
+          msg =
+              'Erro interno no servidor Laravel (verifique os logs em storage/logs).';
         } else {
           msg = 'A API retornou um erro (status $status).';
         }
@@ -363,8 +392,7 @@ class ApiException implements Exception {
     );
   }
 
-  
-
   @override
-  String toString() => 'ApiException[$contexto | status=$statusCode]: $mensagemAmigavel';
+  String toString() =>
+      'ApiException[$contexto | status=$statusCode]: $mensagemAmigavel';
 }

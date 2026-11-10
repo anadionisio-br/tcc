@@ -11,6 +11,7 @@ import '../config/theme.dart';
 import '../controllers/frequencia_controller.dart';
 import '../services/api_service.dart';
 import '../services/face_recognition_service.dart';
+import '../widgets/camera_preview_cover.dart';
 
 class CadastroRostoPage extends StatefulWidget {
   const CadastroRostoPage({super.key});
@@ -143,11 +144,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
 
       _log('Alunos após busca: ${controller.alunos.length}');
     } catch (e, stackTrace) {
-      _logError(
-        'Erro ao carregar alunos',
-        e,
-        stackTrace,
-      );
+      _logError('Erro ao carregar alunos', e, stackTrace);
     } finally {
       if (!mounted) return;
 
@@ -215,21 +212,11 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
   }
 
   String _nomeAluno(Map<String, dynamic> aluno) {
-    return (
-      aluno['nome'] ??
-      aluno['nome_aluno'] ??
-      'Aluno'
-    ).toString();
+    return (aluno['nome'] ?? aluno['nome_aluno'] ?? 'Aluno').toString();
   }
 
   int _idAluno(Map<String, dynamic> aluno) {
-    return int.tryParse(
-          (
-            aluno['id_aluno'] ??
-            aluno['id'] ??
-            ''
-          ).toString(),
-        ) ??
+    return int.tryParse((aluno['id_aluno'] ?? aluno['id'] ?? '').toString()) ??
         0;
   }
 
@@ -256,9 +243,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
       final cameras = await availableCameras();
 
       if (cameras.isEmpty) {
-        throw Exception(
-          'Nenhuma câmera foi encontrada neste dispositivo.',
-        );
+        throw Exception('Nenhuma câmera foi encontrada neste dispositivo.');
       }
 
       final camera = _selecionarCamera(cameras);
@@ -285,9 +270,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
       }
 
       if (!controller.value.isInitialized) {
-        throw Exception(
-          'A câmera foi criada, mas não foi inicializada.',
-        );
+        throw Exception('A câmera foi criada, mas não foi inicializada.');
       }
 
       _log(
@@ -314,17 +297,10 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
         );
       }
     } catch (e, stackTrace) {
-      _logError(
-        'Erro ao abrir câmera',
-        e,
-        stackTrace,
-      );
+      _logError('Erro ao abrir câmera', e, stackTrace);
 
       if (mounted) {
-        _exibirSnackBar(
-          _mensagemErro(e),
-          isErro: true,
-        );
+        _exibirSnackBar(_mensagemErro(e), isErro: true);
       }
     } finally {
       if (!mounted) return;
@@ -359,14 +335,10 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
       );
     }
 
-    throw Exception(
-      'Permissão da câmera não concedida.',
-    );
+    throw Exception('Permissão da câmera não concedida.');
   }
 
-  CameraDescription _selecionarCamera(
-    List<CameraDescription> cameras,
-  ) {
+  CameraDescription _selecionarCamera(List<CameraDescription> cameras) {
     for (final camera in cameras) {
       if (camera.lensDirection == CameraLensDirection.front) {
         return camera;
@@ -382,10 +354,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
 
   Future<void> _capturarEVerificarRosto() async {
     if (_alunoSelecionado == null) {
-      _exibirSnackBar(
-        'Primeiro selecione um aluno.',
-        isErro: true,
-      );
+      _exibirSnackBar('Primeiro selecione um aluno.', isErro: true);
       return;
     }
 
@@ -396,10 +365,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     }
 
     if (!_cameraPronta) {
-      _exibirSnackBar(
-        'A câmera ainda não está pronta.',
-        isErro: true,
-      );
+      _exibirSnackBar('A câmera ainda não está pronta.', isErro: true);
       return;
     }
 
@@ -426,30 +392,19 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
         _rostoDetectado = true;
       });
 
-      _exibirSnackBar(
-        'Rosto detectado com sucesso!',
-      );
+      _exibirSnackBar('Rosto detectado com sucesso!');
     } catch (e, stackTrace) {
-      _logError(
-        'Erro ao capturar rosto',
-        e,
-        stackTrace,
-      );
+      _logError('Erro ao capturar rosto', e, stackTrace);
 
       if (mounted) {
-        _exibirSnackBar(
-          'Erro ao capturar o rosto.',
-          isErro: true,
-        );
+        _exibirSnackBar('Erro ao capturar o rosto.', isErro: true);
       }
     }
   }
 
   Future<void> _carregarFotoDeTeste() async {
     try {
-      final data = await rootBundle.load(
-        FaceTestConfig.foto,
-      );
+      final data = await rootBundle.load(FaceTestConfig.foto);
 
       final bytes = data.buffer.asUint8List();
 
@@ -467,11 +422,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
         _rostoDetectado = true;
       });
     } catch (e, stackTrace) {
-      _logError(
-        'Erro ao carregar foto de teste',
-        e,
-        stackTrace,
-      );
+      _logError('Erro ao carregar foto de teste', e, stackTrace);
 
       if (mounted) {
         _exibirSnackBar(
@@ -483,13 +434,9 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
   }
 
   Future<List<Face>> _detectarRostos(XFile foto) async {
-    final inputImage = InputImage.fromFilePath(
-      foto.path,
-    );
+    final inputImage = InputImage.fromFilePath(foto.path);
 
-    return _faceDetector.processImage(
-      inputImage,
-    );
+    return _faceDetector.processImage(inputImage);
   }
 
   bool _validarQuantidadeRostos(int quantidade) {
@@ -542,10 +489,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     final nomeAluno = _nomeAluno(aluno);
 
     if (idAluno <= 0) {
-      _exibirSnackBar(
-        'Aluno inválido.',
-        isErro: true,
-      );
+      _exibirSnackBar('Aluno inválido.', isErro: true);
       return;
     }
 
@@ -564,9 +508,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
       final imageBytes = await foto.readAsBytes();
 
       if (imageBytes.isEmpty) {
-        throw Exception(
-          'A foto capturada está vazia.',
-        );
+        throw Exception('A foto capturada está vazia.');
       }
 
       await _salvarFoto(
@@ -577,9 +519,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
 
       if (!mounted) return;
 
-      await context
-          .read<FrequenciaController>()
-          .buscarChamada();
+      await context.read<FrequenciaController>().buscarChamada();
 
       if (!mounted) return;
 
@@ -589,9 +529,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
             : 'Rosto de $nomeAluno cadastrado com sucesso!',
       );
 
-      await Future.delayed(
-        const Duration(milliseconds: 800),
-      );
+      await Future.delayed(const Duration(milliseconds: 800));
 
       if (!mounted) return;
 
@@ -606,23 +544,13 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
       );
 
       if (mounted) {
-        _exibirSnackBar(
-          e.mensagemAmigavel,
-          isErro: true,
-        );
+        _exibirSnackBar(e.mensagemAmigavel, isErro: true);
       }
     } catch (e, stackTrace) {
-      _logError(
-        'Erro ao salvar rosto',
-        e,
-        stackTrace,
-      );
+      _logError('Erro ao salvar rosto', e, stackTrace);
 
       if (mounted) {
-        _exibirSnackBar(
-          _mensagemErro(e),
-          isErro: true,
-        );
+        _exibirSnackBar(_mensagemErro(e), isErro: true);
       }
     } finally {
       if (!mounted) return;
@@ -635,19 +563,13 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
 
   bool _validarCadastro() {
     if (_alunoSelecionado == null) {
-      _exibirSnackBar(
-        'Selecione um aluno primeiro.',
-        isErro: true,
-      );
+      _exibirSnackBar('Selecione um aluno primeiro.', isErro: true);
 
       return false;
     }
 
     if (_fotoCapturada == null) {
-      _exibirSnackBar(
-        'Capture o rosto do aluno primeiro.',
-        isErro: true,
-      );
+      _exibirSnackBar('Capture o rosto do aluno primeiro.', isErro: true);
 
       return false;
     }
@@ -661,17 +583,12 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     required String caminhoFoto,
   }) async {
     if (FaceTestConfig.ativo) {
-      await _apiService.enviarFotoTeste(
-        bytes: bytes,
-        idAluno: idAluno,
-      );
+      await _apiService.enviarFotoTeste(bytes: bytes, idAluno: idAluno);
 
       return;
     }
 
-    final embedding = await _faceRecognitionService.extrairRosto(
-      bytes,
-    );
+    final embedding = await _faceRecognitionService.extrairRosto(bytes);
 
     if (embedding == null || embedding.isEmpty) {
       throw Exception(
@@ -687,9 +604,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     );
 
     if (!salvo) {
-      throw Exception(
-        'Não foi possível salvar o rosto.',
-      );
+      throw Exception('Não foi possível salvar o rosto.');
     }
   }
 
@@ -718,9 +633,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     });
   }
 
-  void _selecionarAluno(
-    Map<String, dynamic> aluno,
-  ) {
+  void _selecionarAluno(Map<String, dynamic> aluno) {
     if (_salvando || _alunoBloqueado(aluno)) {
       return;
     }
@@ -733,21 +646,16 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     });
   }
 
-  bool _alunoBloqueado(
-    Map<String, dynamic> aluno,
-  ) {
+  bool _alunoBloqueado(Map<String, dynamic> aluno) {
     final temRosto = aluno['tem_rosto'] == true;
 
     final temRostoTeste =
-        FaceTestConfig.ativo &&
-        aluno['tem_rosto_teste'] == true;
+        FaceTestConfig.ativo && aluno['tem_rosto_teste'] == true;
 
     return temRosto || temRostoTeste;
   }
 
-  Future<void> _removerTeste(
-    Map<String, dynamic> aluno,
-  ) async {
+  Future<void> _removerTeste(Map<String, dynamic> aluno) async {
     if (_salvando) {
       return;
     }
@@ -755,10 +663,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     final idAluno = _idAluno(aluno);
 
     if (idAluno <= 0) {
-      _exibirSnackBar(
-        'Aluno inválido.',
-        isErro: true,
-      );
+      _exibirSnackBar('Aluno inválido.', isErro: true);
       return;
     }
 
@@ -767,34 +672,20 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     });
 
     try {
-      await _apiService.removerFotoTeste(
-        idAluno,
-      );
+      await _apiService.removerFotoTeste(idAluno);
 
       if (!mounted) return;
 
-      await context
-          .read<FrequenciaController>()
-          .buscarChamada();
+      await context.read<FrequenciaController>().buscarChamada();
     } on ApiException catch (e) {
       if (mounted) {
-        _exibirSnackBar(
-          e.mensagemAmigavel,
-          isErro: true,
-        );
+        _exibirSnackBar(e.mensagemAmigavel, isErro: true);
       }
     } catch (e, stackTrace) {
-      _logError(
-        'Erro ao remover foto de teste',
-        e,
-        stackTrace,
-      );
+      _logError('Erro ao remover foto de teste', e, stackTrace);
 
       if (mounted) {
-        _exibirSnackBar(
-          _mensagemErro(e),
-          isErro: true,
-        );
+        _exibirSnackBar(_mensagemErro(e), isErro: true);
       }
     } finally {
       if (!mounted) return;
@@ -802,6 +693,77 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
       setState(() {
         _salvando = false;
       });
+    }
+  }
+
+  Future<void> _excluirRosto(Map<String, dynamic> aluno) async {
+    if (_salvando) {
+      return;
+    }
+
+    final idAluno = _idAluno(aluno);
+
+    if (idAluno <= 0) {
+      _exibirSnackBar('Aluno inválido.', isErro: true);
+      return;
+    }
+
+    final nome = _nomeAluno(aluno);
+
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Excluir rosto'),
+        content: Text(
+          'Excluir o rosto cadastrado de $nome? '
+          'O aluno não será reconhecido no totem até ser cadastrado novamente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: _error),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmado != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _salvando = true;
+    });
+
+    try {
+      await _apiService.removerRosto(idAluno);
+
+      if (!mounted) return;
+
+      await context.read<FrequenciaController>().buscarChamada();
+
+      _exibirSnackBar('Rosto de $nome excluído. Já pode cadastrar novamente.');
+    } on ApiException catch (e) {
+      if (mounted) {
+        _exibirSnackBar(e.mensagemAmigavel, isErro: true);
+      }
+    } catch (e, stackTrace) {
+      _logError('Erro ao excluir rosto', e, stackTrace);
+
+      if (mounted) {
+        _exibirSnackBar(_mensagemErro(e), isErro: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _salvando = false;
+        });
+      }
     }
   }
 
@@ -821,9 +783,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     }
 
     if (partes.length == 1) {
-      return partes.first
-          .substring(0, 1)
-          .toUpperCase();
+      return partes.first.substring(0, 1).toUpperCase();
     }
 
     return '${partes.first.substring(0, 1)}'
@@ -832,9 +792,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
   }
 
   String _mensagemErro(Object erro) {
-    return erro
-        .toString()
-        .replaceFirst('Exception: ', '');
+    return erro.toString().replaceFirst('Exception: ', '');
   }
 
   void _log(String mensagem) {
@@ -845,11 +803,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     );
   }
 
-  void _logError(
-    String contexto,
-    Object erro,
-    StackTrace stackTrace,
-  ) {
+  void _logError(String contexto, Object erro, StackTrace stackTrace) {
     debugPrint(
       '========================================\n'
       '$contexto\n'
@@ -863,10 +817,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
   // SNACKBAR
   // ---------------------------------------------------------------------------
 
-  void _exibirSnackBar(
-    String mensagem, {
-    bool isErro = false,
-  }) {
+  void _exibirSnackBar(String mensagem, {bool isErro = false}) {
     if (!mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);
@@ -888,9 +839,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
             Expanded(
               child: Text(
                 mensagem,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -898,9 +847,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
         backgroundColor: isErro ? _error : _success,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -915,9 +862,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     required IconData icone,
     bool concluido = false,
   }) {
-    final cor = concluido
-        ? _success
-        : SifeTheme.primaryRed;
+    final cor = concluido ? _success : SifeTheme.primaryRed;
 
     return Row(
       children: [
@@ -929,9 +874,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
-            concluido
-                ? Icons.check_rounded
-                : icone,
+            concluido ? Icons.check_rounded : icone,
             color: cor,
             size: 20,
           ),
@@ -959,18 +902,14 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     );
   }
 
-  Widget _buildCard({
-    required Widget child,
-  }) {
+  Widget _buildCard({required Widget child}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: _cardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: _cardBorder,
-        ),
+        border: Border.all(color: _cardBorder),
       ),
       child: child,
     );
@@ -981,23 +920,17 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
   // ---------------------------------------------------------------------------
 
   Widget _buildCamera() {
-    final capturado =
-        _fotoCapturada != null &&
-        _rostoDetectado;
+    final capturado = _fotoCapturada != null && _rostoDetectado;
 
-    final corBorda = capturado
-        ? _success
-        : SifeTheme.primaryRed;
+    final corBorda = capturado ? _success : SifeTheme.primaryRed;
 
-    final tamanho =
-        MediaQuery.of(context).size.width >= _desktopBreakpoint
-            ? 320.0
-            : 250.0;
+    final tamanho = MediaQuery.of(context).size.width >= _desktopBreakpoint
+        ? 320.0
+        : 250.0;
 
     const espacoAnel = 12.0;
 
-    final diametroInterno =
-        tamanho - espacoAnel * 2;
+    final diametroInterno = tamanho - espacoAnel * 2;
 
     final conteudo = _buildConteudoCamera();
 
@@ -1015,9 +948,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
                 color: Colors.black,
                 shape: BoxShape.circle,
               ),
-              child: ClipOval(
-                child: conteudo,
-              ),
+              child: ClipOval(child: conteudo),
             ),
             Positioned.fill(
               child: CustomPaint(
@@ -1027,8 +958,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
                 ),
               ),
             ),
-            if (capturado)
-              _buildIndicadorSucesso(),
+            if (capturado) _buildIndicadorSucesso(),
           ],
         ),
       ),
@@ -1037,18 +967,12 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
 
   Widget _buildConteudoCamera() {
     if (FaceTestConfig.ativo) {
-      return Image.asset(
-        FaceTestConfig.foto,
-        fit: BoxFit.cover,
-      );
+      return Image.asset(FaceTestConfig.foto, fit: BoxFit.cover);
     }
 
     if (_inicializandoCamera) {
       return const Center(
-        child: CircularProgressIndicator(
-          color: Colors.white,
-          strokeWidth: 2.4,
-        ),
+        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.4),
       );
     }
 
@@ -1056,16 +980,11 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
       return _buildCameraIndisponivel();
     }
 
-    if (_fotoCapturada != null &&
-        _fotoBytes != null) {
-      return Image.memory(
-        _fotoBytes!,
-        fit: BoxFit.cover,
-      );
+    if (_fotoCapturada != null && _fotoBytes != null) {
+      return Image.memory(_fotoBytes!, fit: BoxFit.cover);
     }
 
-    final previewSize =
-        _cameraController!.value.previewSize;
+    final previewSize = _cameraController!.value.previewSize;
 
     if (previewSize == null) {
       return const Center(
@@ -1077,17 +996,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
       );
     }
 
-    return FittedBox(
-      fit: BoxFit.cover,
-      clipBehavior: Clip.hardEdge,
-      child: SizedBox(
-        width: previewSize.height,
-        height: previewSize.width,
-        child: CameraPreview(
-          _cameraController!,
-        ),
-      ),
-    );
+    return CameraPreviewCover(controller: _cameraController!);
   }
 
   Widget _buildCameraIndisponivel() {
@@ -1121,9 +1030,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
             ),
             label: const Text(
               'Tentar novamente',
-              style: TextStyle(
-                color: Colors.white70,
-              ),
+              style: TextStyle(color: Colors.white70),
             ),
           ),
         ],
@@ -1141,16 +1048,9 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
         decoration: BoxDecoration(
           color: _success,
           shape: BoxShape.circle,
-          border: Border.all(
-            color: _cardBg,
-            width: 3,
-          ),
+          border: Border.all(color: _cardBg, width: 3),
         ),
-        child: const Icon(
-          Icons.check_rounded,
-          color: Colors.white,
-          size: 22,
-        ),
+        child: const Icon(Icons.check_rounded, color: Colors.white, size: 22),
       ),
     );
   }
@@ -1172,8 +1072,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
       corFundo = _success;
       corBorda = _success;
     } else if (ativo) {
-      corFundo = SifeTheme.primaryRed
-          .withOpacity(0.16);
+      corFundo = SifeTheme.primaryRed.withOpacity(0.16);
       corBorda = SifeTheme.primaryRed;
     } else {
       corFundo = Colors.transparent;
@@ -1184,32 +1083,21 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
       mainAxisSize: MainAxisSize.min,
       children: [
         AnimatedContainer(
-          duration: const Duration(
-            milliseconds: 220,
-          ),
+          duration: const Duration(milliseconds: 220),
           width: 28,
           height: 28,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: corFundo,
             shape: BoxShape.circle,
-            border: Border.all(
-              color: corBorda,
-              width: 1.5,
-            ),
+            border: Border.all(color: corBorda, width: 1.5),
           ),
           child: concluido
-              ? const Icon(
-                  Icons.check_rounded,
-                  color: Colors.white,
-                  size: 16,
-                )
+              ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
               : Text(
                   '$numero',
                   style: TextStyle(
-                    color: ativo
-                        ? Colors.white
-                        : _textMuted,
+                    color: ativo ? Colors.white : _textMuted,
                     fontWeight: FontWeight.w800,
                     fontSize: 12.5,
                   ),
@@ -1219,9 +1107,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
         Text(
           rotulo,
           style: TextStyle(
-            color: ativo || concluido
-                ? Colors.white
-                : _textMuted,
+            color: ativo || concluido ? Colors.white : _textMuted,
             fontWeight: FontWeight.w700,
             fontSize: 13.5,
           ),
@@ -1244,19 +1130,12 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
         ),
         Expanded(
           child: AnimatedContainer(
-            duration: const Duration(
-              milliseconds: 220,
-            ),
+            duration: const Duration(milliseconds: 220),
             height: 2,
-            margin: const EdgeInsets.symmetric(
-              horizontal: 12,
-            ),
+            margin: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              borderRadius:
-                  BorderRadius.circular(2),
-              color: etapaAlunoConcluida
-                  ? _success
-                  : _cardBorder,
+              borderRadius: BorderRadius.circular(2),
+              color: etapaAlunoConcluida ? _success : _cardBorder,
             ),
           ),
         ),
@@ -1274,58 +1153,37 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
   // ITEM DO ALUNO
   // ---------------------------------------------------------------------------
 
-  Widget _buildItemAluno(
-    Map<String, dynamic> aluno,
-  ) {
+  Widget _buildItemAluno(Map<String, dynamic> aluno) {
     final nome = _nomeAluno(aluno);
     final id = _idAluno(aluno);
 
-    final idSelecionado =
-        _alunoSelecionado == null
-            ? 0
-            : _idAluno(_alunoSelecionado!);
+    final idSelecionado = _alunoSelecionado == null
+        ? 0
+        : _idAluno(_alunoSelecionado!);
 
-    final selecionado =
-        idSelecionado == id && id > 0;
+    final selecionado = idSelecionado == id && id > 0;
 
-    final temRosto =
-        aluno['tem_rosto'] == true;
+    final temRosto = aluno['tem_rosto'] == true;
 
     final temRostoTeste =
-        FaceTestConfig.ativo &&
-        aluno['tem_rosto_teste'] == true;
+        FaceTestConfig.ativo && aluno['tem_rosto_teste'] == true;
 
-    final bloqueado =
-        _salvando ||
-        temRosto ||
-        temRostoTeste;
+    final bloqueado = _salvando || temRosto || temRostoTeste;
 
     return InkWell(
-      onTap: bloqueado
-          ? null
-          : () => _selecionarAluno(aluno),
-      borderRadius:
-          BorderRadius.circular(12),
+      onTap: bloqueado ? null : () => _selecionarAluno(aluno),
+      borderRadius: BorderRadius.circular(12),
       child: AnimatedContainer(
-        duration: const Duration(
-          milliseconds: 150,
-        ),
-        padding:
-            const EdgeInsets.symmetric(
-          vertical: 10,
-          horizontal: 12,
-        ),
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
         decoration: BoxDecoration(
           color: selecionado
-              ? SifeTheme.primaryRed
-                  .withOpacity(0.12)
+              ? SifeTheme.primaryRed.withOpacity(0.12)
               : Colors.white.withOpacity(0.03),
-          borderRadius:
-              BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selecionado
-                ? SifeTheme.primaryRed
-                    .withOpacity(0.55)
+                ? SifeTheme.primaryRed.withOpacity(0.55)
                 : Colors.transparent,
             width: 1.4,
           ),
@@ -1336,14 +1194,12 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
               radius: 19,
               backgroundColor: selecionado
                   ? SifeTheme.primaryRed
-                  : Colors.white
-                      .withOpacity(0.09),
+                  : Colors.white.withOpacity(0.09),
               child: Text(
                 _getIniciais(nome),
                 style: const TextStyle(
                   color: Colors.white,
-                  fontWeight:
-                      FontWeight.w800,
+                  fontWeight: FontWeight.w800,
                   fontSize: 12.5,
                 ),
               ),
@@ -1353,17 +1209,13 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
               child: Text(
                 nome,
                 maxLines: 1,
-                overflow:
-                    TextOverflow.ellipsis,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color:
-                      bloqueado && !selecionado
-                          ? Colors.white
-                              .withOpacity(0.6)
-                          : Colors.white,
+                  color: bloqueado && !selecionado
+                      ? Colors.white.withOpacity(0.6)
+                      : Colors.white,
                   fontSize: 14.5,
-                  fontWeight:
-                      FontWeight.w600,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -1387,65 +1239,64 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     required Map<String, dynamic> aluno,
   }) {
     if (temRosto) {
-      return Container(
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 5,
-        ),
-        decoration: BoxDecoration(
-          color:
-              _success.withOpacity(0.12),
-          borderRadius:
-              BorderRadius.circular(20),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.check_circle_rounded,
-              color: _success,
-              size: 14,
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildSeloCadastrado(),
+          IconButton(
+            tooltip: 'Excluir rosto',
+            onPressed: _salvando ? null : () => _excluirRosto(aluno),
+            icon: const Icon(
+              Icons.delete_outline_rounded,
+              color: _error,
+              size: 20,
             ),
-            SizedBox(width: 5),
-            Text(
-              'Cadastrado',
-              style: TextStyle(
-                color: _success,
-                fontSize: 11.5,
-                fontWeight:
-                    FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
       );
     }
 
     if (temRostoTeste) {
       return TextButton(
-        onPressed: _salvando
-            ? null
-            : () => _removerTeste(aluno),
-        child: const Text(
-          'Remover teste',
-        ),
+        onPressed: _salvando ? null : () => _removerTeste(aluno),
+        child: const Text('Remover teste'),
       );
     }
 
     if (selecionado) {
-      return const Icon(
-        Icons.check_circle_rounded,
-        color: _success,
-        size: 22,
-      );
+      return const Icon(Icons.check_circle_rounded, color: _success, size: 22);
     }
 
     return Icon(
       Icons.chevron_right_rounded,
-      color: Colors.white
-          .withOpacity(0.25),
+      color: Colors.white.withOpacity(0.25),
       size: 22,
+    );
+  }
+
+  Widget _buildSeloCadastrado() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: _success.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle_rounded, color: _success, size: 14),
+          SizedBox(width: 5),
+          Text(
+            'Cadastrado',
+            style: TextStyle(
+              color: _success,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1456,16 +1307,12 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
   Widget _buildAcoes() {
     if (_fotoCapturada == null) {
       return _buildBotaoPrimario(
-        label: FaceTestConfig.ativo
-            ? 'Usar foto de teste'
-            : 'Capturar rosto',
+        label: FaceTestConfig.ativo ? 'Usar foto de teste' : 'Capturar rosto',
         icone: Icons.camera_alt_rounded,
         habilitado:
             _alunoSelecionado != null &&
-            (_cameraInicializada ||
-                FaceTestConfig.ativo),
-        onPressed:
-            _capturarEVerificarRosto,
+            (_cameraInicializada || FaceTestConfig.ativo),
+        onPressed: _capturarEVerificarRosto,
       );
     }
 
@@ -1475,35 +1322,17 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
           child: SizedBox(
             height: 56,
             child: OutlinedButton.icon(
-              onPressed: _salvando
-                  ? null
-                  : _tirarOutraFoto,
-              icon: const Icon(
-                Icons.refresh_rounded,
-                size: 18,
-              ),
+              onPressed: _salvando ? null : _tirarOutraFoto,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
               label: const Text(
                 'Refazer',
-                style: TextStyle(
-                  fontWeight:
-                      FontWeight.w700,
-                  fontSize: 14,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
               ),
-              style:
-                  OutlinedButton.styleFrom(
-                foregroundColor:
-                    Colors.white,
-                side:
-                    const BorderSide(
-                  color: _cardBorder,
-                ),
-                shape:
-                    RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(
-                    12,
-                  ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: _cardBorder),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
@@ -1513,9 +1342,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
         Expanded(
           flex: 2,
           child: _buildBotaoPrimario(
-            label: _salvando
-                ? 'Salvando...'
-                : 'Salvar rosto',
+            label: _salvando ? 'Salvando...' : 'Salvar rosto',
             icone: Icons.save_rounded,
             habilitado: !_salvando,
             carregando: _salvando,
@@ -1535,49 +1362,34 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     bool carregando = false,
     Color? cor,
   }) {
-    final corBotao =
-        cor ?? SifeTheme.primaryRed;
+    final corBotao = cor ?? SifeTheme.primaryRed;
 
     return SizedBox(
       height: 56,
       child: ElevatedButton.icon(
-        onPressed:
-            habilitado ? onPressed : null,
+        onPressed: habilitado ? onPressed : null,
         icon: carregando
             ? const SizedBox(
                 width: 18,
                 height: 18,
-                child:
-                    CircularProgressIndicator(
+                child: CircularProgressIndicator(
                   color: Colors.white,
                   strokeWidth: 2.2,
                 ),
               )
-            : Icon(
-                icone,
-                size: 20,
-              ),
+            : Icon(icone, size: 20),
         label: Text(
           label,
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 15,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: corBotao,
-          disabledBackgroundColor:
-              Colors.white
-                  .withOpacity(0.06),
-          disabledForegroundColor:
-              Colors.white38,
-          foregroundColor:
-              Colors.white,
+          disabledBackgroundColor: Colors.white.withOpacity(0.06),
+          disabledForegroundColor: Colors.white38,
+          foregroundColor: Colors.white,
           elevation: 0,
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
       ),
@@ -1590,61 +1402,40 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final controller =
-        context.watch<FrequenciaController>();
+    final controller = context.watch<FrequenciaController>();
 
-    final alunos =
-        _obterAlunos(controller.alunos);
+    final alunos = _obterAlunos(controller.alunos);
 
-    final etapaAlunoConcluida =
-        _alunoSelecionado != null;
+    final etapaAlunoConcluida = _alunoSelecionado != null;
 
-    final etapaRostoConcluida =
-        _fotoCapturada != null &&
-        _rostoDetectado;
+    final etapaRostoConcluida = _fotoCapturada != null && _rostoDetectado;
 
     final comRosto = alunos
         .where(
           (aluno) =>
               aluno['tem_rosto'] == true ||
-              (
-                FaceTestConfig.ativo &&
-                aluno['tem_rosto_teste'] == true
-              ),
+              (FaceTestConfig.ativo && aluno['tem_rosto_teste'] == true),
         )
         .length;
 
-    final tecladoAberto =
-        MediaQuery.of(context)
-                .viewInsets
-                .bottom >
-            0;
+    final tecladoAberto = MediaQuery.of(context).viewInsets.bottom > 0;
 
-    final largo =
-        MediaQuery.of(context).size.width >=
-            _desktopBreakpoint;
+    final largo = MediaQuery.of(context).size.width >= _desktopBreakpoint;
 
-    final alturaLista = largo
-        ? _desktopListHeight
-        : _mobileListHeight;
+    final alturaLista = largo ? _desktopListHeight : _mobileListHeight;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       backgroundColor: _bgTop,
       appBar: _buildAppBar(),
-      bottomNavigationBar:
-          tecladoAberto
-              ? null
-              : _buildBottomBar(largo),
+      bottomNavigationBar: tecladoAberto ? null : _buildBottomBar(largo),
       body: _buildBody(
         alunos: alunos,
         comRosto: comRosto,
         alturaLista: alturaLista,
         largo: largo,
-        etapaAlunoConcluida:
-            etapaAlunoConcluida,
-        etapaRostoConcluida:
-            etapaRostoConcluida,
+        etapaAlunoConcluida: etapaAlunoConcluida,
+        etapaRostoConcluida: etapaRostoConcluida,
       ),
     );
   }
@@ -1671,35 +1462,19 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     return Container(
       decoration: const BoxDecoration(
         color: _bgBottom,
-        border: Border(
-          top: BorderSide(
-            color: _cardBorder,
-          ),
-        ),
+        border: Border(top: BorderSide(color: _cardBorder)),
       ),
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        12,
-        20,
-        12,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
       child: SafeArea(
         top: false,
         child: AnimatedSwitcher(
-          duration: const Duration(
-            milliseconds: 200,
-          ),
+          duration: const Duration(milliseconds: 200),
           child: KeyedSubtree(
-            key: ValueKey(
-              _fotoCapturada == null,
-            ),
+            key: ValueKey(_fotoCapturada == null),
             child: Center(
               heightFactor: 1,
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth:
-                      largo ? 520 : 640,
-                ),
+                constraints: BoxConstraints(maxWidth: largo ? 520 : 640),
                 child: _buildAcoes(),
               ),
             ),
@@ -1722,10 +1497,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            _bgTop,
-            _bgBottom,
-          ],
+          colors: [_bgTop, _bgBottom],
         ),
       ),
       child: SafeArea(
@@ -1733,57 +1505,36 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
             20,
-            MediaQuery.of(context)
-                        .padding
-                        .top >
-                    0
-                ? 8
-                : 20,
+            MediaQuery.of(context).padding.top > 0 ? 8 : 20,
             20,
             24,
           ),
           child: Center(
             child: ConstrainedBox(
-              constraints:
-                  BoxConstraints(
-                maxWidth:
-                    largo ? 1040 : 640,
-              ),
+              constraints: BoxConstraints(maxWidth: largo ? 1040 : 640),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildCabecalho(
-                    etapaAlunoConcluida:
-                        etapaAlunoConcluida,
-                    etapaRostoConcluida:
-                        etapaRostoConcluida,
+                    etapaAlunoConcluida: etapaAlunoConcluida,
+                    etapaRostoConcluida: etapaRostoConcluida,
                   ),
                   const SizedBox(height: 22),
                   if (largo)
                     Row(
-                      crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child:
-                              _buildCardAlunos(
+                          child: _buildCardAlunos(
                             alunos: alunos,
                             comRosto: comRosto,
-                            alturaLista:
-                                alturaLista,
+                            alturaLista: alturaLista,
                           ),
                         ),
-                        const SizedBox(
-                          width: 20,
-                        ),
+                        const SizedBox(width: 20),
                         Expanded(
-                          child:
-                              _buildCardCamera(
-                            etapaRostoConcluida:
-                                etapaRostoConcluida,
+                          child: _buildCardCamera(
+                            etapaRostoConcluida: etapaRostoConcluida,
                           ),
                         ),
                       ],
@@ -1792,16 +1543,10 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
                     _buildCardAlunos(
                       alunos: alunos,
                       comRosto: comRosto,
-                      alturaLista:
-                          alturaLista,
+                      alturaLista: alturaLista,
                     ),
-                    const SizedBox(
-                      height: 16,
-                    ),
-                    _buildCardCamera(
-                      etapaRostoConcluida:
-                          etapaRostoConcluida,
-                    ),
+                    const SizedBox(height: 16),
+                    _buildCardCamera(etapaRostoConcluida: etapaRostoConcluida),
                   ],
                 ],
               ),
@@ -1817,8 +1562,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     required bool etapaRostoConcluida,
   }) {
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
           'Registrar rosto do aluno',
@@ -1834,18 +1578,12 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
           FaceTestConfig.ativo
               ? 'Simulação web: associe a foto de teste a um aluno sem cadastro. A foto testa o fluxo da chamada; o rosto real será cadastrado no APK.'
               : 'Cadastre apenas os alunos sem rosto. Quem já possui cadastro pode usar o totem.',
-          style: const TextStyle(
-            color: _textMuted,
-            fontSize: 14,
-            height: 1.45,
-          ),
+          style: const TextStyle(color: _textMuted, fontSize: 14, height: 1.45),
         ),
         const SizedBox(height: 22),
         _buildProgressoEtapas(
-          etapaAlunoConcluida:
-              etapaAlunoConcluida,
-          etapaRostoConcluida:
-              etapaRostoConcluida,
+          etapaAlunoConcluida: etapaAlunoConcluida,
+          etapaRostoConcluida: etapaRostoConcluida,
         ),
         const SizedBox(height: 22),
       ],
@@ -1859,37 +1597,29 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
   }) {
     return _buildCard(
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionHeader(
             numero: 1,
             titulo: 'Selecione o aluno',
-            icone:
-                Icons.person_search_rounded,
-            concluido:
-                _alunoSelecionado != null,
+            icone: Icons.person_search_rounded,
+            concluido: _alunoSelecionado != null,
           ),
           const SizedBox(height: 16),
           _buildCampoBusca(),
-          if (!_carregandoAlunos &&
-              alunos.isNotEmpty) ...[
+          if (!_carregandoAlunos && alunos.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
               '$comRosto de ${alunos.length} com rosto cadastrado',
               style: const TextStyle(
                 color: _textMuted,
                 fontSize: 12.5,
-                fontWeight:
-                    FontWeight.w600,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
           const SizedBox(height: 12),
-          _buildListaAlunos(
-            alunos: alunos,
-            alturaLista: alturaLista,
-          ),
+          _buildListaAlunos(alunos: alunos, alturaLista: alturaLista),
         ],
       ),
     );
@@ -1899,64 +1629,42 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     return TextField(
       controller: _buscaController,
       onChanged: (_) => setState(() {}),
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 14.5,
-      ),
+      style: const TextStyle(color: Colors.white, fontSize: 14.5),
       decoration: InputDecoration(
         hintText: 'Buscar por nome...',
-        hintStyle: const TextStyle(
-          color: Colors.white38,
-          fontSize: 14.5,
-        ),
+        hintStyle: const TextStyle(color: Colors.white38, fontSize: 14.5),
         prefixIcon: const Icon(
           Icons.search_rounded,
           color: Colors.white38,
           size: 20,
         ),
-        suffixIcon:
-            _buscaController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      color: Colors.white38,
-                      size: 18,
-                    ),
-                    onPressed: () {
-                      _buscaController
-                          .clear();
-                      setState(() {});
-                    },
-                  )
-                : null,
+        suffixIcon: _buscaController.text.isNotEmpty
+            ? IconButton(
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white38,
+                  size: 18,
+                ),
+                onPressed: () {
+                  _buscaController.clear();
+                  setState(() {});
+                },
+              )
+            : null,
         filled: true,
-        fillColor:
-            Colors.black.withOpacity(0.22),
-        contentPadding:
-            const EdgeInsets.symmetric(
-          vertical: 14,
-        ),
+        fillColor: Colors.black.withOpacity(0.22),
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
         border: _inputBorder(),
         enabledBorder: _inputBorder(),
-        focusedBorder: _inputBorder(
-          Color: SifeTheme.primaryRed,
-          width: 1.4,
-        ),
+        focusedBorder: _inputBorder(Color: SifeTheme.primaryRed, width: 1.4),
       ),
     );
   }
 
-  OutlineInputBorder _inputBorder({
-    Color = _cardBorder,
-    double width = 1,
-  }) {
+  OutlineInputBorder _inputBorder({Color = _cardBorder, double width = 1}) {
     return OutlineInputBorder(
-      borderRadius:
-          BorderRadius.circular(12),
-      borderSide: BorderSide(
-        color: Color,
-        width: width,
-      ),
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: Color, width: width),
     );
   }
 
@@ -1966,13 +1674,9 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
   }) {
     if (_carregandoAlunos) {
       return const Padding(
-        padding:
-            EdgeInsets.symmetric(
-          vertical: 28,
-        ),
+        padding: EdgeInsets.symmetric(vertical: 28),
         child: Center(
-          child:
-              CircularProgressIndicator(
+          child: CircularProgressIndicator(
             color: Colors.white70,
             strokeWidth: 2.2,
           ),
@@ -1985,18 +1689,13 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     }
 
     return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: alturaLista,
-      ),
+      constraints: BoxConstraints(maxHeight: alturaLista),
       child: ListView.separated(
         shrinkWrap: true,
         itemCount: alunos.length,
-        separatorBuilder: (_, __) =>
-            const SizedBox(height: 6),
+        separatorBuilder: (_, __) => const SizedBox(height: 6),
         itemBuilder: (_, index) {
-          return _buildItemAluno(
-            alunos[index],
-          );
+          return _buildItemAluno(alunos[index]);
         },
       ),
     );
@@ -2004,20 +1703,15 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
 
   Widget _buildListaVazia() {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(
-        vertical: 20,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 20),
       child: Center(
         child: Column(
           children: [
             Container(
               width: 56,
               height: 56,
-              decoration:
-                  BoxDecoration(
-                color: Colors.white
-                    .withOpacity(0.06),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.06),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -2031,46 +1725,27 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
               'Nenhum aluno encontrado',
               style: TextStyle(
                 color: Colors.white70,
-                fontWeight:
-                    FontWeight.w600,
+                fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
             ),
             const SizedBox(height: 14),
             OutlinedButton.icon(
-              onPressed:
-                  _carregarAlunos,
-              icon: const Icon(
-                Icons.refresh_rounded,
-                size: 16,
-              ),
+              onPressed: _carregarAlunos,
+              icon: const Icon(Icons.refresh_rounded, size: 16),
               label: const Text(
                 'Carregar alunos',
-                style: TextStyle(
-                  fontWeight:
-                      FontWeight.w700,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
-              style:
-                  OutlinedButton.styleFrom(
-                foregroundColor:
-                    Colors.white,
-                side:
-                    const BorderSide(
-                  color: _cardBorder,
-                ),
-                padding:
-                    const EdgeInsets
-                        .symmetric(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: _cardBorder),
+                padding: const EdgeInsets.symmetric(
                   horizontal: 18,
                   vertical: 12,
                 ),
-                shape:
-                    RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(
-                    12,
-                  ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
@@ -2080,9 +1755,7 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
     );
   }
 
-  Widget _buildCardCamera({
-    required bool etapaRostoConcluida,
-  }) {
+  Widget _buildCardCamera({required bool etapaRostoConcluida}) {
     return _buildCard(
       child: Column(
         children: [
@@ -2091,75 +1764,49 @@ class _CadastroRostoPageState extends State<CadastroRostoPage> {
             titulo: FaceTestConfig.ativo
                 ? 'Foto de teste — simulação web'
                 : 'Capture o rosto',
-            icone: Icons
-                .face_retouching_natural_rounded,
-            concluido:
-                etapaRostoConcluida,
+            icone: Icons.face_retouching_natural_rounded,
+            concluido: etapaRostoConcluida,
           ),
           const SizedBox(height: 22),
           _buildCamera(),
           const SizedBox(height: 20),
-          _buildStatusRosto(
-            concluido:
-                etapaRostoConcluida,
-          ),
+          _buildStatusRosto(concluido: etapaRostoConcluida),
         ],
       ),
     );
   }
 
-  Widget _buildStatusRosto({
-    required bool concluido,
-  }) {
+  Widget _buildStatusRosto({required bool concluido}) {
     return AnimatedContainer(
-      duration: const Duration(
-        milliseconds: 200,
-      ),
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 8,
-      ),
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: concluido
             ? _success.withOpacity(0.12)
-            : Colors.white
-                .withOpacity(0.05),
-        borderRadius:
-            BorderRadius.circular(30),
+            : Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(30),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            concluido
-                ? Icons.check_circle_rounded
-                : Icons.info_outline_rounded,
+            concluido ? Icons.check_circle_rounded : Icons.info_outline_rounded,
             size: 15,
-            color: concluido
-                ? _success
-                : Colors.white60,
+            color: concluido ? _success : Colors.white60,
           ),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
               concluido
-                  ? (
-                      FaceTestConfig.ativo
-                          ? 'Foto de teste selecionada'
-                          : 'Rosto detectado com sucesso'
-                    )
-                  : (
-                      FaceTestConfig.ativo
-                          ? 'Associe a foto a um único aluno'
-                          : 'Posicione o rosto dentro do círculo'
-                    ),
+                  ? (FaceTestConfig.ativo
+                        ? 'Foto de teste selecionada'
+                        : 'Rosto detectado com sucesso')
+                  : (FaceTestConfig.ativo
+                        ? 'Associe a foto a um único aluno'
+                        : 'Posicione o rosto dentro do círculo'),
               style: TextStyle(
-                color: concluido
-                    ? _success
-                    : Colors.white60,
-                fontWeight:
-                    FontWeight.w600,
+                color: concluido ? _success : Colors.white60,
+                fontWeight: FontWeight.w600,
                 fontSize: 12.5,
               ),
             ),
@@ -2178,26 +1825,15 @@ class _AnelRostoPainter extends CustomPainter {
   final Color color;
   final bool completo;
 
-  const _AnelRostoPainter({
-    required this.color,
-    required this.completo,
-  });
+  const _AnelRostoPainter({required this.color, required this.completo});
 
   @override
-  void paint(
-    Canvas canvas,
-    Size size,
-  ) {
-    final centro =
-        size.center(Offset.zero);
+  void paint(Canvas canvas, Size size) {
+    final centro = size.center(Offset.zero);
 
-    final raio =
-        size.width / 2 - 4;
+    final raio = size.width / 2 - 4;
 
-    final area = Rect.fromCircle(
-      center: centro,
-      radius: raio,
-    );
+    final area = Rect.fromCircle(center: centro, radius: raio);
 
     canvas.drawCircle(
       centro,
@@ -2205,8 +1841,7 @@ class _AnelRostoPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2
-        ..color =
-            color.withOpacity(0.22),
+        ..color = color.withOpacity(0.22),
     );
 
     final traco = Paint()
@@ -2216,11 +1851,7 @@ class _AnelRostoPainter extends CustomPainter {
       ..color = color;
 
     if (completo) {
-      canvas.drawCircle(
-        centro,
-        raio,
-        traco,
-      );
+      canvas.drawCircle(centro, raio, traco);
       return;
     }
 
@@ -2228,13 +1859,11 @@ class _AnelRostoPainter extends CustomPainter {
     const varredura = pi / 3;
 
     for (var i = 0; i < 4; i++) {
-      final centroDoArco =
-          -pi / 4 + i * (pi / 2);
+      final centroDoArco = -pi / 4 + i * (pi / 2);
 
       canvas.drawArc(
         area,
-        centroDoArco -
-            varredura / 2,
+        centroDoArco - varredura / 2,
         varredura,
         false,
         traco,
@@ -2243,10 +1872,7 @@ class _AnelRostoPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(
-    covariant _AnelRostoPainter antigo,
-  ) {
-    return antigo.color != color ||
-        antigo.completo != completo;
+  bool shouldRepaint(covariant _AnelRostoPainter antigo) {
+    return antigo.color != color || antigo.completo != completo;
   }
 }

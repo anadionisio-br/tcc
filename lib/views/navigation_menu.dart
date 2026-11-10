@@ -517,7 +517,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
 
   Widget _buildMenuItem({
     required int index,
-    required IconData icon,
+    required FaIconData icon,
     required String label,
     required String description,
   }) {
@@ -632,7 +632,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
   // ============================================================
 
   Widget _buildInfoItem(
-    IconData icon,
+    FaIconData icon,
     String label,
   ) {
     return Padding(
